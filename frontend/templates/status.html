@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block body %}
+  <h2>Status for job_id: {{job_id}}</h2>
+  <p>{{per_done}}% done -- {{n_tasks_done}} out of {{n_tasks}}.</p>
+  {% if n_tasks==n_tasks_done %}
+  <p>Plots:</p>
+  <img src="{{ url_for('plot', job_id=job_id) }}" class="img-fluid">
+  {% endif %}
+  <p>Parameters, status, and output of all tasks associated with this job are listed below:</p>
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>Task ID</th>
+        <th>Num. of Clusters</th>
+        <th>Covariance</th>
+        <th>Columns Used</th>
+        <th>Status</th>
+        <th>BIC</th>
+        <th>AIC</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for task in tasks | sort(attribute='task_id') %}
+      <tr>
+        <td>{{task.task_id}}</td>
+        <td>{{task.k}}</td>
+        <td>{{task.covar_type | capitalize}} {% if task.covar_tied %} Tied {% else %} Untied {% endif %}</td>
+        <td>{{task.columns|join(', ')}}</td>
+        <td>{{task.task_status | capitalize}}</td>
+        <td>{{task.bic}}</td>
+        <td>{{task.aic}}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+
+{% endblock %}

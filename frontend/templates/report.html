@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block body %}
+  <h2>Report for job_id: {{job_id}}</h2>
+  <img src="{{ url_for('plot', job_id=job_id) }}" class="img-fluid">
+{% endblock %}
