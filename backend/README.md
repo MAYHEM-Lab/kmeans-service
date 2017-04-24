@@ -21,6 +21,7 @@ sudo $VIRTUAL_ENV/bin/pip2.7 install pip --upgrade
 sudo $VIRTUAL_ENV/bin/pip2.7 install --no-binary :all: numpy
 sudo $VIRTUAL_ENV/bin/pip2.7 install --no-binary :all: scipy
 sudo $VIRTUAL_ENV/bin/pip2.7 install --no-binary :all: sklearn
+sudo $VIRTUAL_ENV/bin/pip2.7 install --no-binary :all: pandas
 ```
 
 

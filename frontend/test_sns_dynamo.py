@@ -1,10 +1,8 @@
 """
-Message format:
-{"covar_type":"full", "covar_tied":"true", "n_init":10, "data_s3":"some_url", "k":2}
+Test script to add job info to DynamoDB and trigger Lambda tasks using SNS.
 
+Author: Angad Gill
 """
-
-
 import boto3
 import json
 
@@ -12,15 +10,17 @@ DYNAMO_URL = 'https://dynamodb.us-west-1.amazonaws.com'
 DYNAMO_TABLE = 'test_table'
 DYNAMO_REGION = 'us-west-1'
 SNS_TOPIC_ARN = 'arn:aws:sns:us-west-1:000169391513:kmeans-service'
+S3_BUCKET = 'kmeansservice'
 
 
-def send_to_dynamo(id, job_id, task_id, covar_tied, covar_type, k, message, n_init, subject):
-    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION,
-                              endpoint_url=DYNAMO_URL)
+def send_to_dynamo(id, job_id, task_id, covar_tied, covar_type, k, n_init, s3_file_key, columns, sns_message,
+                   sns_subject, task_status):
+    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
     table = dynamodb.Table(DYNAMO_TABLE)
     response = table.put_item(
-        Item={'id': id, 'job_id': job_id, 'task_id': task_id, 'message': message, 'subject': subject,
-              'covar_type': covar_type, 'covar_tied': covar_tied, 'k': k, 'n_init': n_init})
+        Item={'id': id, 'job_id': job_id, 'task_id': task_id, 'sns_message': sns_message, 'sns_subject': sns_subject,
+              'covar_type': covar_type, 'covar_tied': covar_tied, 'k': k, 'n_init': n_init, 's3_file_key': s3_file_key,
+              'columns': columns, 'task_status': task_status})
     return response
 
 
@@ -31,18 +31,36 @@ def send_to_sns(message, subject):
 
 
 if __name__ == '__main__':
-    job_id = 3456
-    task_id = 1
-    id = int('{}{}'.format(job_id, task_id))
+    job_id = 5000
+    # task_id = 2
+    # covar_tied = True
+    # covar_type = 'full'
 
-    covar_tied = True
-    covar_type = 'diag'
-    k = 3
+    covar_types = ['full', 'diag', 'spher']
+    covar_tieds = [True, False]
+    s3_file_key = 'data/CalPoly_no_outliers.csv'
     n_init = 10
+    task_status = 'pending'
+    columns = ['EC1', 'EC2']
+    max_k = 10
+    n_experiments = 10
 
-    payload = {'id': id, 'k': k, 'covar_type': covar_type, 'covar_tied': covar_tied, 'n_init': n_init}
-    message = json.dumps(payload)
-    subject = 'script test'
+    task_id = 0
+    for _ in range(n_experiments):
+        for k in range(1, max_k+1):
+            for covar_type in covar_types:
+                for covar_tied in covar_tieds:
+                    id = int('{}'.format(job_id)+'{0:04d}'.format(task_id))
+                    payload = dict(id=id, k=k, covar_type=covar_type, covar_tied=covar_tied, n_init=n_init,
+                                   s3_file_key=s3_file_key, columns=columns)
+                    # payload = {'id': id, 'k': k, 'covar_type': covar_type, 'covar_tied': covar_tied, 'n_init': n_init,
+                    #            's3_file_key': s3_file_key, 'columns': columns}
+                    sns_message = json.dumps(payload)
+                    sns_subject = 'script test'
 
-    print send_to_dynamo(id, job_id, task_id, covar_tied, covar_type, k, message, n_init, subject)
-    print send_to_sns(message, subject)
+                    print send_to_dynamo(id, job_id, task_id, covar_tied, covar_type, k, n_init, s3_file_key, columns,
+                                         sns_message, sns_subject, task_status)
+                    print send_to_sns(sns_message, sns_subject)
+                    print 'task_id: {} submitted.'.format(task_id)
+                    print '---'
+                    task_id += 1
