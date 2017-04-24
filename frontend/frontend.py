@@ -21,13 +21,14 @@ S3             DynamoDB                         |
 Author: Angad Gill
 """
 
-from flask import Flask, request, make_response
-from flask import render_template
+from flask import Flask, request, make_response, render_template, redirect, url_for, flash
+from werkzeug.utils import secure_filename
 
 import boto3
 from boto3.dynamodb.conditions import Attr
 
 import io
+import os
 
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import seaborn as sns
@@ -39,7 +40,11 @@ DYNAMO_TABLE = 'test_table'
 DYNAMO_REGION = 'us-west-1'
 S3_BUCKET = 'kmeansservice'
 
+UPLOAD_FOLDER = 'data'
+ALLOWED_EXTENSIONS = set(['csv'])
+
 app = Flask(__name__)
+app.secret_key = 'some_secret'
 
 
 @app.route('/', methods=['GET'])
@@ -47,10 +52,22 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/status/')
+@app.route('/status/', methods=['GET', 'POST'])
 @app.route('/status/<job_id>')
 def status(job_id=None):
     """ Pull information on all tasks for a job from DynamoDB and render as a table """
+
+    if request.method == 'POST':
+        job_id = request.form['job_id']
+        if job_id:
+            return redirect(url_for('status', job_id=job_id))
+        else:
+            flash("Invalid job ID!", 'danger')
+            return render_template('index.html')
+
+    if job_id is None:
+        job_id = request.args.get('job_id', None)
+
     if job_id:
         tasks = get_tasks(job_id)
         n_tasks = len(tasks)
@@ -59,7 +76,7 @@ def status(job_id=None):
         return render_template('status.html', job_id=job_id, n_tasks=n_tasks, n_tasks_done=n_tasks_done,
                                per_done=per_done, tasks=tasks)
     else:
-        return 'Need job_id'
+        return render_template('index.html', error='Invalid Job ID.')
 
 
 def get_tasks(job_id):
@@ -88,7 +105,6 @@ def plot(job_id=None):
     df['bic'] = df['bic'].astype('float')
 
     df = pd.melt(df, id_vars=['k', 'covar_type', 'covar_tied'], value_vars=['aic', 'bic'], var_name='metric')
-    print(df.head())
     f = sns.factorplot(x='k', y='value', col='covar_type', row='covar_tied', hue='metric', data=df,
                        row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True)
     f.set_titles("{col_name} {row_name}")
@@ -106,9 +122,39 @@ def fig_to_png(fig):
     return response
 
 
-@app.route('/submit', methods=['POST', 'GET'])
-def submit():
-    return request.form.get('data')
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/upload', methods=['GET', 'POST'])
+def upload():
+    if request.method == 'POST':
+
+        # Ensure that file is part of the post
+        if 'file' not in request.files:
+            flash("No file part in form submission!", 'danger')
+            return redirect(url_for('index'))
+
+        # Ensure that files were selected by user
+        file = request.files['file']
+        if file.filename == '':
+            flash("No selected file!", 'danger')
+            return redirect(url_for('index'))
+
+        # Ensure that file type is allowed
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(UPLOAD_FOLDER, filename))
+            flash('File "{}" uploaded successfully!'.format(filename), 'success')
+            return redirect(url_for('index'))
+        else:
+            filename = secure_filename(file.filename)
+            flash('Incorrect file extension for file "{}"!'.format(filename), 'danger')
+            return redirect(url_for('index'))
+
+    else:
+        return redirect(request.url)
 
 
 if __name__ == "__main__":

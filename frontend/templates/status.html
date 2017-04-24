@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block body %}
-  <h2>Status for job_id: {{job_id}}</h2>
+  <h2>Status for job ID: {{job_id}}</h2>
   <p>{{per_done}}% done -- {{n_tasks_done}} out of {{n_tasks}}.</p>
   {% if n_tasks==n_tasks_done %}
-  <p>Plots:</p>
+  <h2>Plots:</h2>
   <img src="{{ url_for('plot', job_id=job_id) }}" class="img-fluid">
   {% endif %}
+  <h2>Details:</h2>
   <p>Parameters, status, and output of all tasks associated with this job are listed below:</p>
   <table class="table table-hover">
     <thead>
