@@ -6,7 +6,6 @@ Author: Angad Gill
 
 import boto3
 import json
-import pandas as pd
 
 from celery import Celery
 from config import DYNAMO_URL, DYNAMO_TABLE, DYNAMO_REGION, SNS_TOPIC_ARN, CELERY_BROKER
@@ -15,7 +14,7 @@ app = Celery('jobs', broker=CELERY_BROKER)
 
 
 @app.task
-def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, job_id):
+def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, job_id, n_tasks):
     task_status = 'pending'
     task_id = 0
     dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)

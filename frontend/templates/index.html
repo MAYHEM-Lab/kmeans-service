@@ -15,12 +15,6 @@
     <p> Upload your data file here to start a new analysis:</p>
     <form method="post" enctype="multipart/form-data" action="{{url_for('submit')}}">
       <div class="form-group row">
-        <label for="job_id" class="col-2 col-form-label">job_id:</label>
-        <div class="col-10">
-          <input class="form-control" type="number" value="1" id="job_id" name="job_id">
-        </div>
-      </div>
-      <div class="form-group row">
         <label for="n_experiments" class="col-2 col-form-label">n_exp:</label>
         <div class="col-10">
           <input class="form-control" type="number" value="2" id="n_experiments" name="n_experiments" min="1" max="100">

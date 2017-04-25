@@ -23,6 +23,7 @@ Author: Angad Gill
 
 import os
 import io
+import random
 
 from flask import Flask, request, make_response, render_template, redirect, url_for, flash
 from werkzeug.utils import secure_filename
@@ -69,10 +70,11 @@ def status(job_id=None):
         job_id = request.args.get('job_id', None)
 
     if job_id:
-        tasks = get_tasks_from_dynamodb(job_id)
-        if len(tasks) == 0:
+        if not job_id_exists(job_id):
             flash('Job ID {} not found!'.format(job_id), category='danger')
             return render_template('index.html')
+
+        tasks = get_tasks_from_dynamodb(job_id)
 
         n_tasks = tasks[0]['n_tasks']
         n_tasks_submitted = len(tasks)
@@ -92,6 +94,14 @@ def get_tasks_from_dynamodb(job_id):
     response = table.scan(FilterExpression=Attr('job_id').eq(int(job_id)))
     tasks = response['Items']
     return tasks
+
+
+def job_id_exists(job_id):
+    """ Get a list of all task entries in DynamoDB for the given job_id. """
+    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
+    table = dynamodb.Table(DYNAMO_TABLE)
+    response = table.scan(FilterExpression=Attr('job_id').eq(int(job_id)), Limit=1)
+    return response['Count'] > 0
 
 
 @app.route('/report/<job_id>')
@@ -161,7 +171,8 @@ def submit():
                 os.mkdir(UPLOAD_FOLDER)
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
-            job_id = int(request.form.get('job_id'))
+            # job_id = int(request.form.get('job_id'))
+            job_id = generate_job_id()
             s3_file_key = upload_to_s3(filepath, filename, job_id)
             flash('File "{}" uploaded successfully!'.format(filename), 'success')
 
@@ -176,7 +187,7 @@ def submit():
 
             n_tasks = n_experiments * max_k * len(covars)
 
-            submit_job.delay(n_init, n_experiments, max_k, covars, columns, s3_file_key, job_id)
+            submit_job.delay(n_init, n_experiments, max_k, covars, columns, s3_file_key, job_id, n_tasks)
             flash('Your request with job ID {} with {} tasks is being submitted. Please visit this URL in a few '
                   'seconds: {}.'.format(job_id, n_tasks, url_for('status', job_id=job_id, _external=True)), 'info')
             return redirect(url_for('index'))
@@ -188,6 +199,14 @@ def submit():
 
     else:
         return redirect(request.url)
+
+
+def generate_job_id():
+    min, max = 1, 1e9
+    id = random.randint(min, max)
+    while job_id_exists(id):
+        id = random.randint(min, max)
+    return id
 
 
 if __name__ == "__main__":
