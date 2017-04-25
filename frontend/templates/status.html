@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block body %}
   <h2>Status for job ID: {{job_id}}</h2>
-  <p>{{per_done}}% done -- {{n_tasks_done}} out of {{n_tasks}}.</p>
+  <p>{{per_done}}% tasks done -- {{n_tasks_done}} out of {{n_tasks}}.</p>
+  <p>Done: {{n_tasks_done}}.</p>
+  <p>Submitted: {{n_tasks_submitted}}.</p>
+  <p>Total: {{n_tasks}}.</p>
   {% if n_tasks==n_tasks_done %}
   <h2>Plots:</h2>
   <img src="{{ url_for('plot', job_id=job_id) }}" class="img-fluid">
