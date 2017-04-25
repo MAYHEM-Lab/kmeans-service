@@ -29,6 +29,7 @@ from boto3.dynamodb.conditions import Attr
 
 import io
 import os
+import json
 
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import seaborn as sns
@@ -39,9 +40,11 @@ DYNAMO_URL = 'https://dynamodb.us-west-1.amazonaws.com'
 DYNAMO_TABLE = 'test_table'
 DYNAMO_REGION = 'us-west-1'
 S3_BUCKET = 'kmeansservice'
+SNS_TOPIC_ARN = 'arn:aws:sns:us-west-1:000169391513:kmeans-service'
 
 UPLOAD_FOLDER = 'data'
 ALLOWED_EXTENSIONS = set(['csv'])
+
 
 app = Flask(__name__)
 app.secret_key = 'some_secret'
@@ -127,10 +130,16 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-@app.route('/upload', methods=['GET', 'POST'])
-def upload():
-    if request.method == 'POST':
+def upload_to_s3(filepath, filename, job_id):
+    s3_file_key = '{}/{}/{}'.format(UPLOAD_FOLDER, job_id, filename)
+    s3 = boto3.resource('s3')
+    s3.meta.client.upload_file(filepath, S3_BUCKET, s3_file_key)
+    return s3_file_key
 
+
+@app.route('/submit', methods=['GET', 'POST'])
+def submit():
+    if request.method == 'POST':
         # Ensure that file is part of the post
         if 'file' not in request.files:
             flash("No file part in form submission!", 'danger')
@@ -145,9 +154,18 @@ def upload():
         # Ensure that file type is allowed
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            file.save(os.path.join(UPLOAD_FOLDER, filename))
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            file.save(filepath)
+
+            job_id = int(request.form.get('job_id'))
+            s3_file_key = upload_to_s3(filepath, filename, job_id)
             flash('File "{}" uploaded successfully!'.format(filename), 'success')
-            return redirect(url_for('index'))
+            n_tasks = submit_job(request.form, filepath, s3_file_key, job_id)
+
+            flash('Your job ID is: {}.'.format(job_id), 'info')
+            flash('{} tasks submitted!'.format(n_tasks), 'success')
+            return redirect(url_for('status', job_id=job_id))
+
         else:
             filename = secure_filename(file.filename)
             flash('Incorrect file extension for file "{}"!'.format(filename), 'danger')
@@ -155,6 +173,52 @@ def upload():
 
     else:
         return redirect(request.url)
+
+
+def send_to_dynamo(id, job_id, task_id, covar_tied, covar_type, k, n_init, s3_file_key, columns, sns_message,
+                   sns_subject, task_status):
+    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
+    table = dynamodb.Table(DYNAMO_TABLE)
+    response = table.put_item(
+        Item={'id': id, 'job_id': job_id, 'task_id': task_id, 'sns_message': sns_message, 'sns_subject': sns_subject,
+              'covar_type': covar_type, 'covar_tied': covar_tied, 'k': k, 'n_init': n_init, 's3_file_key': s3_file_key,
+              'columns': columns, 'task_status': task_status})
+    return response
+
+
+def send_to_sns(message, subject):
+    sns = boto3.client('sns')
+    response = sns.publish(TopicArn=SNS_TOPIC_ARN, Message=message, Subject=subject)
+    return response
+
+
+def submit_job(form, filepath, s3_file_key, job_id):
+    n_init = int(form.get('n_init'))
+    n_experiments = int(form.get('n_experiments'))
+    max_k = int(form.get('max_k'))
+    covars = form.getlist('covars')
+    df = pd.read_csv(filepath, nrows=1)
+    exclude_columns = ['longitude', 'latitude']
+    columns = [c for c in df.columns if c.lower() not in exclude_columns]
+    task_status = 'pending'
+    task_id = 0
+    for _ in range(n_experiments):
+        for k in range(1, max_k+1):
+            for covar in covars:
+                covar_type, covar_tied = covar.lower().split('-')
+                covar_tied = covar_tied=='tied'
+                id = int('{}'.format(job_id)+'{0:04d}'.format(task_id))
+                payload = dict(id=id, k=k, covar_type=covar_type, covar_tied=covar_tied, n_init=n_init,
+                               s3_file_key=s3_file_key, columns=columns)
+                sns_message = json.dumps(payload)
+                sns_subject = 'web test'
+
+                send_to_dynamo(id, job_id, task_id, covar_tied, covar_type, k, n_init, s3_file_key, columns,
+                               sns_message, sns_subject, task_status)
+                send_to_sns(sns_message, sns_subject)
+                task_id += 1
+                # print('Submited: job_id:{}, task_id:{}'.format(job_id, task_id))
+    return task_id
 
 
 if __name__ == "__main__":
