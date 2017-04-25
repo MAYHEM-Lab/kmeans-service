@@ -23,7 +23,6 @@ Author: Angad Gill
 
 import os
 import io
-import time
 
 from flask import Flask, request, make_response, render_template, redirect, url_for, flash
 from werkzeug.utils import secure_filename
@@ -38,19 +37,14 @@ import pandas as pd
 
 from submit_job import submit_job
 
-
-DYNAMO_URL = 'https://dynamodb.us-west-1.amazonaws.com'
-DYNAMO_TABLE = 'test_table'
-DYNAMO_REGION = 'us-west-1'
-S3_BUCKET = 'kmeansservice'
-SNS_TOPIC_ARN = 'arn:aws:sns:us-west-1:000169391513:kmeans-service'
+from config import DYNAMO_URL, DYNAMO_TABLE, DYNAMO_REGION, S3_BUCKET
 
 UPLOAD_FOLDER = 'data'
 ALLOWED_EXTENSIONS = set(['csv'])
-
+EXCLUDE_COLUMNS = ['longitude', 'latitude']
 
 app = Flask(__name__)
-app.secret_key = 'some_secret'
+app.secret_key = os.urandom(24)
 
 
 @app.route('/', methods=['GET'])
@@ -75,7 +69,11 @@ def status(job_id=None):
         job_id = request.args.get('job_id', None)
 
     if job_id:
-        tasks = get_tasks(job_id)
+        tasks = get_tasks_from_dynamodb(job_id)
+        if len(tasks) == 0:
+            flash('Job ID {} not found!'.format(job_id), category='danger')
+            return render_template('index.html')
+
         n_tasks = tasks[0]['n_tasks']
         n_tasks_submitted = len(tasks)
         n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
@@ -83,10 +81,11 @@ def status(job_id=None):
         return render_template('status.html', job_id=job_id, n_tasks=n_tasks, n_tasks_submitted=n_tasks_submitted,
                                n_tasks_done=n_tasks_done, per_done=per_done, tasks=tasks)
     else:
-        return render_template('index.html', error='Invalid Job ID.')
+        flash('Job ID invalid!'.format(job_id), category='danger')
+        return render_template('index.html')
 
 
-def get_tasks(job_id):
+def get_tasks_from_dynamodb(job_id):
     """ Get a list of all task entries in DynamoDB for the given job_id. """
     dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
     table = dynamodb.Table(DYNAMO_TABLE)
@@ -104,7 +103,7 @@ def report(job_id=None):
 def plot(job_id=None):
     sns.set(context='talk')
 
-    df = pd.DataFrame(get_tasks(job_id))
+    df = pd.DataFrame(get_tasks_from_dynamodb(job_id))
     df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
     df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
@@ -158,22 +157,29 @@ def submit():
         # Ensure that file type is allowed
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
+            if not os.path.isdir(UPLOAD_FOLDER):
+                os.mkdir(UPLOAD_FOLDER)
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
-
             job_id = int(request.form.get('job_id'))
             s3_file_key = upload_to_s3(filepath, filename, job_id)
             flash('File "{}" uploaded successfully!'.format(filename), 'success')
+
+            df = pd.read_csv(filepath, nrows=1)
+            columns = [c for c in df.columns if c.lower() not in EXCLUDE_COLUMNS]
+            os.remove(filepath)
 
             n_init = int(request.form.get('n_init'))
             n_experiments = int(request.form.get('n_experiments'))
             max_k = int(request.form.get('max_k'))
             covars = request.form.getlist('covars')
 
-            submit_job.delay(n_init, n_experiments, max_k, covars, filepath, s3_file_key, job_id)
-            time.sleep(1)
-            flash('Your job ID is: {}.'.format(job_id), 'info')
-            return redirect(url_for('status', job_id=job_id))
+            n_tasks = n_experiments * max_k * len(covars)
+
+            submit_job.delay(n_init, n_experiments, max_k, covars, columns, s3_file_key, job_id)
+            flash('Your request with job ID {} with {} tasks is being submitted. Please visit this URL in a few '
+                  'seconds: {}.'.format(job_id, n_tasks, url_for('status', job_id=job_id, _external=True)), 'info')
+            return redirect(url_for('index'))
 
         else:
             filename = secure_filename(file.filename)

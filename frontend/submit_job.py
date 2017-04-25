@@ -9,25 +9,15 @@ import json
 import pandas as pd
 
 from celery import Celery
+from config import DYNAMO_URL, DYNAMO_TABLE, DYNAMO_REGION, SNS_TOPIC_ARN, CELERY_BROKER
 
-app = Celery('jobs', broker='amqp://localhost//')
+app = Celery('jobs', broker=CELERY_BROKER)
 
-
-DYNAMO_URL = 'https://dynamodb.us-west-1.amazonaws.com'
-DYNAMO_TABLE = 'test_table'
-DYNAMO_REGION = 'us-west-1'
-SNS_TOPIC_ARN = 'arn:aws:sns:us-west-1:000169391513:kmeans-service'
 
 @app.task
-def submit_job(n_init, n_experiments, max_k, covars, filepath, s3_file_key, job_id):
-    n_tasks = n_experiments * max_k * len(covars)
-
-    df = pd.read_csv(filepath, nrows=1)
-    exclude_columns = ['longitude', 'latitude']
-    columns = [c for c in df.columns if c.lower() not in exclude_columns]
+def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, job_id):
     task_status = 'pending'
     task_id = 0
-
     dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
     table = dynamodb.Table(DYNAMO_TABLE)
     sns = boto3.client('sns')
@@ -44,7 +34,8 @@ def submit_job(n_init, n_experiments, max_k, covars, filepath, s3_file_key, job_
                 sns_message = json.dumps(sns_payload)
                 sns_subject = 'web test'
 
-                item = dict(id=id, job_id=job_id, task_id=task_id, sns_message=sns_message, sns_subject=sns_subject,
+                item = dict(id=id, job_id=job_id, task_id=task_id,
+                            # sns_message=sns_message, sns_subject=sns_subject,
                             covar_type=covar_type, covar_tied=covar_tied, k=k, n_init=n_init, s3_file_key=s3_file_key,
                             columns=columns, task_status=task_status, n_tasks=n_tasks)
                 dynamodb_response = table.put_item(Item=item)

@@ -9,80 +9,81 @@
   <p class="lead">This service will analyze your data to determine the best number of clusters for it.</p>
 </div>
 
-<!--<form class="form-inline" method="post" enctype="multipart/form-data" action="{{url_for('submit')}}">-->
-  <!--<label class="mr-sm-2" for="file">Submit a file for analaysis</label>-->
-  <!--<input type="file" class="form-control mb-2 mr-sm-2 mb-sm-0" name="file" id="file" multiple>-->
-  <!--<input type="submit" value="Upload" class="btn btn-primary">-->
-<!--</form>-->
+<div class="row">
+  <div class="col-md-6">
+    <h2> New Analysis </h2>
+    <p> Upload your data file here to start a new analysis:</p>
+    <form method="post" enctype="multipart/form-data" action="{{url_for('submit')}}">
+      <div class="form-group row">
+        <label for="job_id" class="col-2 col-form-label">job_id:</label>
+        <div class="col-10">
+          <input class="form-control" type="number" value="1" id="job_id" name="job_id">
+        </div>
+      </div>
+      <div class="form-group row">
+        <label for="n_experiments" class="col-2 col-form-label">n_exp:</label>
+        <div class="col-10">
+          <input class="form-control" type="number" value="2" id="n_experiments" name="n_experiments" min="1" max="100">
+          <small id="n_experiments_help" class="form-text text-muted">Number of times the analysis is run to create confidence intervals.</small>
+        </div>
+      </div>
+      <div class="form-group row">
+        <label for="max_k" class="col-2 col-form-label">max_k:</label>
+        <div class="col-10">
+          <input class="form-control" type="number" value="2" id="max_k" name="max_k" min="1" max="10">
+          <small id="max_k_help" class="form-text text-muted">Maximum number of clusters to fit to the data.</small>
+        </div>
+      </div>
+      <div class="form-group row">
+        <label for="n_init" class="col-2 col-form-label">n_init:</label>
+        <div class="col-10">
+          <input class="form-control" type="number" value="2" id="n_init" name="n_init" min="1" max="100">
+          <small id="n_init_help" class="form-text text-muted">Number of times to initialize each fit.</small>
+        </div>
+      </div>
+      <div class="form-group row">
+        <label for="covars" class="col-2 col-form-label">covars:</label>
+        <div class="col-10">
+          <select multiple class="form-control" id="covars" name="covars">
+            <option value="full-tied" selected>Full-Tied</option>
+            <option value="full-untied" selected>Full-Untied</option>
+            <option value="diag-tied" selected>Diagonal-Tied</option>
+            <option value="diag-untied" selected>Diagonal-Untied</option>
+            <option value="spher-tied" selected>Spherical-Tied</option>
+            <option value="spher-untied" selected>Spherical-Untied</option>
+          </select>
+          <small id="covars_help" class="form-text text-muted">Covariance matrices to use for the analysis.</small>
+        </div>
+      </div>
+      <div class="form-group row">
+        <label for="file" class="col-2 col-form-label">file:</label>
+        <div class="col-10">
+          <input type="file" class="form-control-file" id="file" name="file">
+          <small id="file_help" class="form-text text-muted">
+            Only '.csv' files smaller than 256MB in size are allowed.
+            The files must have a header with column names.
+            "Longitude" and "Latitude" will be ignored for clustering.
+          </small>
+        </div>
+      </div>
+      <div class="form-group row">
+        <label for="submit" class="col-2 col-form-label"></label>
+        <div class="col-10">
+          <button id="submit" type="submit" class="btn btn-primary">Submit</button>
+        </div>
+      </div>
+    </form>
+  </div>
 
-<h2> New Analysis </h2>
-<p> Upload your data file here to start a new analysis. </p>
-<form method="post" enctype="multipart/form-data" action="{{url_for('submit')}}">
-  <div class="form-group row">
-    <label for="job_id" class="col-2 col-form-label">job_id:</label>
-    <div class="col-10">
-      <input class="form-control" type="number" value="1" id="job_id" name="job_id">
-    </div>
-  </div>
-  <div class="form-group row">
-    <label for="n_experiments" class="col-2 col-form-label">n_experiments:</label>
-    <div class="col-10">
-      <input class="form-control" type="number" value="2" id="n_experiments" name="n_experiments" min="1" max="100">
-      <small id="n_experiments_help" class="form-text text-muted">Number of times the analysis is run to create confidence intervals.</small>
-    </div>
-  </div>
-  <div class="form-group row">
-    <label for="max_k" class="col-2 col-form-label">max_k:</label>
-    <div class="col-10">
-      <input class="form-control" type="number" value="2" id="max_k" name="max_k" min="1" max="10">
-      <small id="max_k_help" class="form-text text-muted">Maximum number of clusters to fit to the data.</small>
-    </div>
-  </div>
-  <div class="form-group row">
-    <label for="n_init" class="col-2 col-form-label">n_init:</label>
-    <div class="col-10">
-      <input class="form-control" type="number" value="2" id="n_init" name="n_init" min="1" max="100">
-      <small id="n_init_help" class="form-text text-muted">Number of times to initialize each fit.</small>
-    </div>
-  </div>
-  <div class="form-group row">
-    <label for="covars" class="col-2 col-form-label">covars:</label>
-    <div class="col-10">
-      <select multiple class="form-control" id="covars" name="covars">
-        <option value="full-tied" selected>Full-Tied</option>
-        <option value="full-untied" selected>Full-Untied</option>
-        <option value="diag-tied" selected>Diagonal-Tied</option>
-        <option value="diag-untied" selected>Diagonal-Untied</option>
-        <option value="spher-tied" selected>Spherical-Tied</option>
-        <option value="spher-untied" selected>Spherical-Untied</option>
-      </select>
-      <small id="covars_help" class="form-text text-muted">Covariance matrices to use for the analysis.</small>
-    </div>
-  </div>
-  <div class="form-group row">
-    <label for="file" class="col-2 col-form-label">file:</label>
-    <div class="col-10">
-      <input type="file" class="form-control-file" id="file" name="file">
-      <small id="file_help" class="form-text text-muted">
-        Only '.csv' files are allowed. Files will uploaded to Amazon S3. The file must have a header with column names.
-        Columns with the name "Longitude" and "Latitude" will be ignored for clustering.
-      </small>
-    </div>
-  </div>
-  <div class="form-group row">
-    <label for="submit" class="col-2 col-form-label"></label>
-    <div class="col-10">
-      <button id="submit" type="submit" class="btn btn-primary">Submit</button>
-    </div>
-  </div>
-</form>
+  <div class="col-md-6">
 
-
-<h2> Check Analysis </h2>
-<form class="form-inline" method="post" name="status" action="{{url_for('status')}}">
-  <label class="mr-sm-2" for="job_id">Get job status</label>
-  <input type="text" class="form-control mb-2 mr-sm-2 mb-sm-0" id="job_id" name="job_id" placeholder="Job ID">
-  <button type="submit" class="btn btn-primary">Submit</button>
-</form>
-
+    <h2> Check Status </h2>
+    <p>Check the status of a previously submitted job here:</p>
+    <form class="form-inline" method="post" name="status" action="{{url_for('status')}}">
+      <!--<label class="mr-sm-2" for="job_id">Get job status</label>-->
+      <input type="text" class="form-control mb-2 mr-sm-2 mb-sm-0" id="job_id" name="job_id" placeholder="Job ID">
+      <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+  </div>
+</div>
 {% endblock %}

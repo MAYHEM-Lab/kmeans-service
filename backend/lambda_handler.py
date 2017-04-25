@@ -27,7 +27,7 @@ import pandas as pd
 from sf_kmeans import sf_kmeans
 
 DYNAMO_URL = 'https://dynamodb.us-west-1.amazonaws.com'
-DYNAMO_TABLE = 'test_table'
+DYNAMO_TABLE = 'kmeansservice'
 DYNAMO_REGION = 'us-west-1'
 S3_BUCKET = 'kmeansservice'
 
