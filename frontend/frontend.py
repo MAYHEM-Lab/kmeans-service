@@ -100,7 +100,7 @@ def job_id_exists(job_id):
     """ Get a list of all task entries in DynamoDB for the given job_id. """
     dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
     table = dynamodb.Table(DYNAMO_TABLE)
-    response = table.scan(FilterExpression=Attr('job_id').eq(int(job_id)), Limit=1)
+    response = table.scan(FilterExpression=Attr('job_id').eq(int(job_id)))
     return response['Count'] > 0
 
 

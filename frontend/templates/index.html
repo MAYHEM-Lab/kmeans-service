@@ -18,21 +18,27 @@
         <label for="n_experiments" class="col-2 col-form-label">n_exp:</label>
         <div class="col-10">
           <input class="form-control" type="number" value="2" id="n_experiments" name="n_experiments" min="1" max="100">
-          <small id="n_experiments_help" class="form-text text-muted">Number of times the analysis is run to create confidence intervals.</small>
+          <small id="n_experiments_help" class="form-text text-muted">
+            Number of times the analysis is run to create confidence intervals. Min: 1. Max: 100.
+          </small>
         </div>
       </div>
       <div class="form-group row">
         <label for="max_k" class="col-2 col-form-label">max_k:</label>
         <div class="col-10">
           <input class="form-control" type="number" value="2" id="max_k" name="max_k" min="1" max="10">
-          <small id="max_k_help" class="form-text text-muted">Maximum number of clusters to fit to the data.</small>
+          <small id="max_k_help" class="form-text text-muted">
+            Maximum number of clusters to fit to the data. Min: 1. Max: 15.
+          </small>
         </div>
       </div>
       <div class="form-group row">
         <label for="n_init" class="col-2 col-form-label">n_init:</label>
         <div class="col-10">
           <input class="form-control" type="number" value="2" id="n_init" name="n_init" min="1" max="100">
-          <small id="n_init_help" class="form-text text-muted">Number of times to initialize each fit.</small>
+          <small id="n_init_help" class="form-text text-muted">
+            Number of times to initialize each fit. Min: 1. Max: 100.
+          </small>
         </div>
       </div>
       <div class="form-group row">
@@ -59,6 +65,15 @@
             "Longitude" and "Latitude" will be ignored for clustering.
           </small>
         </div>
+        <!--<div class="col-10">-->
+          <!--<input type="file" class="custom-file-input form-control-file" id="file" name="file">-->
+          <!--<div class="custom-file-control"></div>-->
+          <!--<small id="file_help" class="form-text text-muted">-->
+            <!--Only '.csv' files smaller than 256MB in size are allowed.-->
+            <!--The files must have a header with column names.-->
+            <!--"Longitude" and "Latitude" will be ignored for clustering.-->
+          <!--</small>-->
+        <!--</div>-->
       </div>
       <div class="form-group row">
         <label for="submit" class="col-2 col-form-label"></label>
@@ -76,7 +91,7 @@
     <form class="form-inline" method="post" name="status" action="{{url_for('status')}}">
       <!--<label class="mr-sm-2" for="job_id">Get job status</label>-->
       <input type="text" class="form-control mb-2 mr-sm-2 mb-sm-0" id="job_id" name="job_id" placeholder="Job ID">
-      <button type="submit" class="btn btn-primary">Submit</button>
+      <button type="submit" class="btn btn-primary">Check</button>
     </form>
   </div>
 </div>
