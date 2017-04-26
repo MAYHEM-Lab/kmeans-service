@@ -50,19 +50,21 @@ def run_kmeans(data, n_clusters, covar_type, covar_tied, n_init):
     kmeans.fit(data)
     aic, bic = kmeans.aic(data), kmeans.bic(data)
     aic, bic = float_to_str(aic), float_to_str(bic)
-    return aic, bic
+    labels = list(kmeans.labels_)
+    return aic, bic, labels
 
 
-def update_at_dynamo(id, aic, bic, elapsed_time, elapsed_read_time, elapsed_processing_time):
+def update_at_dynamo(id, aic, bic, elapsed_time, elapsed_read_time, elapsed_processing_time, labels):
     dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
     table = dynamodb.Table(DYNAMO_TABLE)
     key = {'id': id}
     response = table.update_item(Key=key,
                                  UpdateExpression='SET aic=:val1, bic=:val2, elapsed_time=:val3, task_status=:val4, '
-                                                  'elapsed_read_time=:val5, elapsed_processing_time=:val6',
+                                                  'elapsed_read_time=:val5, elapsed_processing_time=:val6, '
+                                                  'labels=:val7',
                                  ExpressionAttributeValues={':val1': aic, ':val2': bic, ':val3': elapsed_time,
                                                             ':val4':'done', ':val5':elapsed_read_time,
-                                                            ':val6':elapsed_processing_time})
+                                                            ':val6':elapsed_processing_time, ':val7':labels})
     return response
 
 def update_at_dynamo_error(id):
@@ -103,7 +105,7 @@ def lambda_handler(event, context):
 
         start_processing_time = time.time()
         data = data.loc[:, columns]
-        aic, bic = run_kmeans(data, k, covar_type, covar_tied, n_init)
+        aic, bic, labels = run_kmeans(data, k, covar_type, covar_tied, n_init)
         elapsed_processing_time = time.time() - start_processing_time
 
         elapsed_time = time.time() - start_time
@@ -113,7 +115,7 @@ def lambda_handler(event, context):
         elapsed_processing_time = float_to_str(elapsed_processing_time)
         # time.sleep(5)
 
-        response = update_at_dynamo(id, aic, bic, elapsed_time, elapsed_read_time, elapsed_processing_time)
+        response = update_at_dynamo(id, aic, bic, elapsed_time, elapsed_read_time, elapsed_processing_time, labels)
     except Exception, e:
         response = update_at_dynamo_error(id)
         print(e)

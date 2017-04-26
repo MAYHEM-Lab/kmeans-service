@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
   <h2>Report for job_id: {{job_id}}</h2>
-  <p>Recommended number of clusters:</p>
+  <p>Recommended number of clusters based on the best (highest) BIC score:</p>
     <table class="table table-hover">
       <thead>
         <tr>
@@ -19,11 +19,14 @@
       </tbody>
     </table>
   <h3>Clusters:</h3>
+  <p> Visualization of recommended cluster assignments for the first two columns in the dataset:</p>
+  <img src="data:image/png;base64,{{cluster_plot}}" class="img-fluid"/>
 
   <h3>Plots:</h3>
   <p>
     Akaike Information Critieria (AIC) and Bayesian Information Criteria (BIC) for all covariance and "k" values,
     shown with 95% confidence intervals.
   </p>
-  <img src="{{ url_for('plot', type='aic_bic', job_id=job_id) }}" class="img-fluid">
+  <img src="data:image/png;base64,{{aic_bic_plot}}" class="img-fluid"/>
+
 {% endblock %}

@@ -6,8 +6,6 @@
   <p>Columns used: {{tasks[0].columns|join(', ')}}</p>
   {% if n_tasks==n_tasks_done %}
     <p><a class="btn btn-primary" href="{{url_for('report', job_id=job_id)}}" role="button">All Done! View report »</a></p>
-    <!--<h2>Plots:</h2>-->
-    <!--<img src="{{ url_for('plot', job_id=job_id) }}" class="img-fluid">-->
   {% endif %}
   <h3>Details:</h3>
   <p>Parameters, status, and output of all tasks associated with this job are listed below:</p>
@@ -28,7 +26,11 @@
       <tr>
         <td>{{task.task_id}}</td>
         <td>{{task.k}}</td>
-        <td>{{task.covar_type | capitalize}} {% if task.covar_tied %} Tied {% else %} Untied {% endif %}</td>
+        <td>
+          {{task.covar_type | capitalize}}
+          {% if task.covar_tied==True %}Tied{% endif %}
+          {% if task.covar_tied==False %}Untied{% endif %}
+        </td>
         <td>{{task.bic}}</td>
         <td>{{task.aic}}</td>
         <td {%if task.task_status=="error" %} class="table-danger" {%endif%}>

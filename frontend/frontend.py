@@ -25,6 +25,8 @@ import os
 import io
 import random
 import time
+import base64
+import urllib.parse
 
 from flask import Flask, request, make_response, render_template, redirect, url_for, flash
 from werkzeug.utils import secure_filename
@@ -34,6 +36,8 @@ from boto3.dynamodb.conditions import Attr
 
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from matplotlib.figure import Figure
+from matplotlib.dates import DateFormatter
 import seaborn as sns
 import pandas as pd
 
@@ -116,43 +120,118 @@ def report(job_id=None):
         flash('Job ID invalid!'.format(job_id), category='danger')
         return render_template('index.html')
     else:
-        df = pd.DataFrame(get_tasks_from_dynamodb(job_id))
-        df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic']]
-        df = df.sort_values('bic', ascending=False)
-        df = df.groupby(['covar_type', 'covar_tied']).first()
-        df = df.reset_index()
-        covar_type_tied_k = list(zip(df['covar_type'], df['covar_tied'], df['k'].astype('int')))
-        return render_template('report.html', job_id=job_id, covar_type_tied_k=covar_type_tied_k)
+        if not job_id_exists(job_id):
+            flash('Job ID {} not found!'.format(job_id), category='danger')
+            return render_template('index.html')
+
+        tasks = get_tasks_from_dynamodb(job_id)
+
+        n_tasks = tasks[0]['n_tasks']
+        n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
+        if n_tasks != n_tasks_done:
+            flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
+            redirect(url_for('status', job_id=job_id))
+
+        covar_type_tied_k = best_k(tasks)
+
+        fig = plot_aic_bic_fig(tasks)
+        aic_bic_plot = fig_to_png(fig)
+        aic_bic_plot = png_for_template(aic_bic_plot)
+
+        fig = plot_cluster_fig(tasks)
+        cluster_plot = fig_to_png(fig)
+        cluster_plot = png_for_template(cluster_plot)
+
+        return render_template('report.html', job_id=job_id, covar_type_tied_k=covar_type_tied_k,
+                               aic_bic_plot=aic_bic_plot, cluster_plot=cluster_plot)
 
 
-@app.route('/plot/<type>/<job_id>')
-def plot(type=None, job_id=None):
-    if type == 'aic_bic':
-        sns.set(context='talk')
-        df = pd.DataFrame(get_tasks_from_dynamodb(job_id))
-        df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
-        df['covar_type'] = [x.capitalize() for x in df['covar_type']]
-        df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
-        df['aic'] = df['aic'].astype('float')
-        df['bic'] = df['bic'].astype('float')
+def png_for_template(png):
+    output = base64.b64encode(png.getvalue())
+    output = urllib.parse.quote(output)
+    return output
 
-        df = pd.melt(df, id_vars=['k', 'covar_type', 'covar_tied'], value_vars=['aic', 'bic'], var_name='metric')
-        f = sns.factorplot(x='k', y='value', col='covar_type', row='covar_tied', hue='metric', data=df,
-                           row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True)
-        f.set_titles("{col_name} {row_name}")
 
-        fig = f.fig
+def best_k(tasks):
+    df = pd.DataFrame(tasks)
+    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic']]
+    df = df.sort_values('bic', ascending=False)
+    df = df.groupby(['covar_type', 'covar_tied']).first()
+    df = df.reset_index()
+    covar_type_tied_k = list(zip(df['covar_type'], df['covar_tied'], df['k'].astype('int')))
+    return covar_type_tied_k
 
-    return fig_to_png(fig)
+
+# @app.route('/plot/<type>/<job_id>')
+# def plot(type=None, job_id=None):
+#     if type == 'aic_bic':
+#         sns.set(context='talk')
+#         tasks = get_tasks_from_dynamodb(job_id)
+#         fig = plot_aic_bic_fig(tasks)
+#         png_response = fig_to_png_response(fig)
+#     # if type ==
+#     return png_response
+#
+
+def plot_aic_bic_fig(tasks):
+    sns.set(context='talk')
+    df = pd.DataFrame(tasks)
+    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
+    df['covar_type'] = [x.capitalize() for x in df['covar_type']]
+    df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
+    df['aic'] = df['aic'].astype('float')
+    df['bic'] = df['bic'].astype('float')
+    df = pd.melt(df, id_vars=['k', 'covar_type', 'covar_tied'], value_vars=['aic', 'bic'], var_name='metric')
+    f = sns.factorplot(x='k', y='value', col='covar_type', row='covar_tied', hue='metric', data=df,
+                       row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True)
+    f.set_titles("{col_name}-{row_name}")
+    return f.fig
+
+
+def s3_to_df(s3_file_key):
+    s3 = boto3.client('s3')
+    file_name = '/tmp/data_file'
+    s3.download_file(S3_BUCKET, s3_file_key, file_name)
+    df = pd.read_csv(file_name)
+    os.remove(file_name)
+    return df
+
+
+def plot_cluster_fig(tasks):
+    """ Creates a 3x2 plot scatter plot using the first two columns """
+    sns.set(context='talk')
+    df = pd.DataFrame(tasks)
+    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'labels']]
+    df = df.sort_values('bic', ascending=False)
+    df = df.groupby(['covar_type', 'covar_tied']).first()
+    df = df.reset_index()
+
+    s3_file_key = tasks[0]['s3_file_key']
+    columns = tasks[0]['columns']
+    data = s3_to_df(s3_file_key)
+
+    fig = plt.figure()
+    placement = {'full': {True: 1, False: 4}, 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
+    for covar_type, covar_tied, labels in zip(df['covar_type'], df['covar_tied'], df['labels']):
+        plt.subplot(2, 3, placement[covar_type][covar_tied])
+        plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow)
+        plt.title('{}-{}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied]))
+    plt.tight_layout()
+    return fig
+
+
+def fig_to_png_response(fig):
+    output = fig_to_png(fig)
+    response = make_response(output.getvalue())
+    response.mimetype = 'image/png'
+    return response
 
 
 def fig_to_png(fig):
     canvas = FigureCanvas(fig)
     output = io.BytesIO()
     canvas.print_png(output)
-    response = make_response(output.getvalue())
-    response.mimetype = 'image/png'
-    return response
+    return output
 
 
 def allowed_file(filename):
