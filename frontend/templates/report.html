@@ -1,5 +1,29 @@
 {% extends "base.html" %}
 {% block body %}
   <h2>Report for job_id: {{job_id}}</h2>
-  <img src="{{ url_for('plot', job_id=job_id) }}" class="img-fluid">
+  <p>Recommended number of clusters:</p>
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Covariance</th>
+          <th>Num. of Clusters</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for covar_type, covar_tied, k in covar_type_tied_k %}
+        <tr>
+          <td>{{covar_type|capitalize}}-{% if covar_tied %}Tied{% else %}Untied{% endif%}</td>
+          <td>{{k}}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  <h3>Clusters:</h3>
+
+  <h3>Plots:</h3>
+  <p>
+    Akaike Information Critieria (AIC) and Bayesian Information Criteria (BIC) for all covariance and "k" values,
+    shown with 95% confidence intervals.
+  </p>
+  <img src="{{ url_for('plot', type='aic_bic', job_id=job_id) }}" class="img-fluid">
 {% endblock %}

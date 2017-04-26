@@ -24,6 +24,7 @@ Author: Angad Gill
 import os
 import io
 import random
+import time
 
 from flask import Flask, request, make_response, render_template, redirect, url_for, flash
 from werkzeug.utils import secure_filename
@@ -31,12 +32,12 @@ from werkzeug.utils import secure_filename
 import boto3
 from boto3.dynamodb.conditions import Attr
 
-
+from matplotlib import pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import seaborn as sns
 import pandas as pd
 
-from submit_job import submit_job, generate_id
+from submit_job import submit_job, generate_id, submit_task
 
 from config import DYNAMO_URL, DYNAMO_TABLE, DYNAMO_REGION, S3_BUCKET
 
@@ -69,7 +70,10 @@ def status(job_id=None):
     if job_id is None:
         job_id = request.args.get('job_id', None)
 
-    if job_id:
+    if job_id is None:
+        flash('Job ID invalid!'.format(job_id), category='danger')
+        return render_template('index.html')
+    else:
         if not job_id_exists(job_id):
             flash('Job ID {} not found!'.format(job_id), category='danger')
             return render_template('index.html')
@@ -82,9 +86,6 @@ def status(job_id=None):
         per_done = '{:.1f}'.format(n_tasks_done/n_tasks*100)
         return render_template('status.html', job_id=job_id, n_tasks=n_tasks, n_tasks_submitted=n_tasks_submitted,
                                n_tasks_done=n_tasks_done, per_done=per_done, tasks=tasks)
-    else:
-        flash('Job ID invalid!'.format(job_id), category='danger')
-        return render_template('index.html')
 
 
 def get_tasks_from_dynamodb(job_id):
@@ -104,28 +105,44 @@ def job_id_exists(job_id):
     return response['Count'] > 0
 
 
+@app.route('/report/', methods=['GET', 'POST'])
 @app.route('/report/<job_id>')
 def report(job_id=None):
-    return render_template('report.html', job_id=job_id)
+    if request.method == 'POST':
+        job_id = int(request.form.get('job_id'))
+    elif request.method == 'GET' and job_id is None:
+        job_id = int(request.args.get('job_id'))
+    if job_id is None:
+        flash('Job ID invalid!'.format(job_id), category='danger')
+        return render_template('index.html')
+    else:
+        df = pd.DataFrame(get_tasks_from_dynamodb(job_id))
+        df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic']]
+        df = df.sort_values('bic', ascending=False)
+        df = df.groupby(['covar_type', 'covar_tied']).first()
+        df = df.reset_index()
+        covar_type_tied_k = list(zip(df['covar_type'], df['covar_tied'], df['k'].astype('int')))
+        return render_template('report.html', job_id=job_id, covar_type_tied_k=covar_type_tied_k)
 
 
-@app.route('/plot/<job_id>')
-def plot(job_id=None):
-    sns.set(context='talk')
+@app.route('/plot/<type>/<job_id>')
+def plot(type=None, job_id=None):
+    if type == 'aic_bic':
+        sns.set(context='talk')
+        df = pd.DataFrame(get_tasks_from_dynamodb(job_id))
+        df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
+        df['covar_type'] = [x.capitalize() for x in df['covar_type']]
+        df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
+        df['aic'] = df['aic'].astype('float')
+        df['bic'] = df['bic'].astype('float')
 
-    df = pd.DataFrame(get_tasks_from_dynamodb(job_id))
-    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
-    df['covar_type'] = [x.capitalize() for x in df['covar_type']]
-    df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
-    df['aic'] = df['aic'].astype('float')
-    df['bic'] = df['bic'].astype('float')
+        df = pd.melt(df, id_vars=['k', 'covar_type', 'covar_tied'], value_vars=['aic', 'bic'], var_name='metric')
+        f = sns.factorplot(x='k', y='value', col='covar_type', row='covar_tied', hue='metric', data=df,
+                           row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True)
+        f.set_titles("{col_name} {row_name}")
 
-    df = pd.melt(df, id_vars=['k', 'covar_type', 'covar_tied'], value_vars=['aic', 'bic'], var_name='metric')
-    f = sns.factorplot(x='k', y='value', col='covar_type', row='covar_tied', hue='metric', data=df,
-                       row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True)
-    f.set_titles("{col_name} {row_name}")
+        fig = f.fig
 
-    fig = f.fig
     return fig_to_png(fig)
 
 
@@ -171,8 +188,8 @@ def submit():
                 os.mkdir(UPLOAD_FOLDER)
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
-            # job_id = int(request.form.get('job_id'))
-            job_id = generate_job_id()
+            job_id = int(request.form.get('job_id'))
+            # job_id = generate_job_id()
             s3_file_key = upload_to_s3(filepath, filename, job_id)
             # flash('File "{}" uploaded successfully!'.format(filename), 'success')
 
@@ -214,11 +231,48 @@ def create_task_on_dynamodb(job_id, task_id, n_tasks, filename):
 
 
 def generate_job_id():
-    min, max = 1, 1e9
+    min, max = 100, 1e9
     id = random.randint(min, max)
     while job_id_exists(id):
         id = random.randint(min, max)
     return id
+
+
+@app.route('/rerun/', methods=['GET', 'POST'])
+@app.route('/rerun/<job_id>/<task_id>', methods=['GET'])
+def rerun(job_id=None, task_id=None):
+    if request.method == 'POST':
+        job_id = int(request.form.get('job_id'))
+        task_id = int(request.form.get('task_id'))
+    elif request.method == 'GET' and job_id is None:
+        job_id = int(request.args.get('job_id'))
+        task_id = int(request.args.get('task_id'))
+
+    id = generate_id(job_id, task_id)
+
+    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
+    table = dynamodb.Table(DYNAMO_TABLE)
+    response = table.get_item(Key={'id': id})
+    task = response['Item']
+
+    columns = task['columns']
+    covar_tied = task['covar_tied']
+    covar_type = task['covar_type']
+    filename = task['filename']
+    job_id = int(task['job_id'])
+    k = int(task['k'])
+    n_init = int(task['n_init'])
+    n_tasks = int(task['n_tasks'])
+    s3_file_key = task['s3_file_key']
+    start_time = str(time.time())
+    task_id = int(task['task_id'])
+    task_status = task['task_status']
+
+    submit_task(columns, covar_tied, covar_type, filename, job_id, k, n_init, n_tasks, s3_file_key, start_time,
+                      task_id, task_status)
+
+    flash('Rerunning task "{}" for job ID "{}"'.format(task_id, job_id), category='info')
+    return redirect(url_for('status', job_id=job_id))
 
 
 if __name__ == "__main__":

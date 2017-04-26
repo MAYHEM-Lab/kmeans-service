@@ -3,11 +3,13 @@
   <h2>Status for job ID: {{job_id}}</h2>
   <p>{{n_tasks_submitted}}/{{n_tasks}} jobs submitted and {{n_tasks_done}}/{{n_tasks}} [{{per_done}}%] done!</p>
   <p>File used: {{tasks[0].filename}}</p>
+  <p>Columns used: {{tasks[0].columns|join(', ')}}</p>
   {% if n_tasks==n_tasks_done %}
-    <h2>Plots:</h2>
-    <img src="{{ url_for('plot', job_id=job_id) }}" class="img-fluid">
+    <p><a class="btn btn-primary" href="{{url_for('report', job_id=job_id)}}" role="button">All Done! View report »</a></p>
+    <!--<h2>Plots:</h2>-->
+    <!--<img src="{{ url_for('plot', job_id=job_id) }}" class="img-fluid">-->
   {% endif %}
-  <h2>Details:</h2>
+  <h3>Details:</h3>
   <p>Parameters, status, and output of all tasks associated with this job are listed below:</p>
   <table class="table table-hover">
     <thead>
@@ -15,10 +17,10 @@
         <th>Task ID</th>
         <th>Num. of Clusters</th>
         <th>Covariance</th>
-        <th>Columns Used</th>
-        <th>Status</th>
         <th>BIC</th>
         <th>AIC</th>
+        <th>Status</th>
+        <th>Re-run</th>
       </tr>
     </thead>
     <tbody>
@@ -27,10 +29,20 @@
         <td>{{task.task_id}}</td>
         <td>{{task.k}}</td>
         <td>{{task.covar_type | capitalize}} {% if task.covar_tied %} Tied {% else %} Untied {% endif %}</td>
-        <td>{{task.columns|join(', ')}}</td>
-        <td>{{task.task_status | capitalize}}</td>
         <td>{{task.bic}}</td>
         <td>{{task.aic}}</td>
+        <td {%if task.task_status=="error" %} class="table-danger" {%endif%}>
+          {{task.task_status | capitalize}}
+        </td>
+        <td>
+          <form class="form" method="post" name="rerun" action="{{url_for('rerun')}}">
+            <input type="hidden" id="job_id" name="job_id" value="{{task.job_id}}">
+            <input type="hidden" id="task_id" name="task_id" value="{{task.task_id}}">
+            <button type="submit" class="btn btn-info">
+              <span class="glyphicon glyphicon-repeat"></span>
+            </button>
+          </form>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
