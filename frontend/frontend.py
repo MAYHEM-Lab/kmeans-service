@@ -36,7 +36,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import seaborn as sns
 import pandas as pd
 
-from submit_job import submit_job
+from submit_job import submit_job, generate_id
 
 from config import DYNAMO_URL, DYNAMO_TABLE, DYNAMO_REGION, S3_BUCKET
 
@@ -174,7 +174,7 @@ def submit():
             # job_id = int(request.form.get('job_id'))
             job_id = generate_job_id()
             s3_file_key = upload_to_s3(filepath, filename, job_id)
-            flash('File "{}" uploaded successfully!'.format(filename), 'success')
+            # flash('File "{}" uploaded successfully!'.format(filename), 'success')
 
             df = pd.read_csv(filepath, nrows=1)
             columns = [c for c in df.columns if c.lower() not in EXCLUDE_COLUMNS]
@@ -187,10 +187,13 @@ def submit():
 
             n_tasks = n_experiments * max_k * len(covars)
 
-            submit_job.delay(n_init, n_experiments, max_k, covars, columns, s3_file_key, job_id, n_tasks)
-            flash('Your request with job ID {} with {} tasks is being submitted. Please visit this URL in a few '
-                  'seconds: {}.'.format(job_id, n_tasks, url_for('status', job_id=job_id, _external=True)), 'info')
-            return redirect(url_for('index'))
+            create_task_on_dynamodb(job_id, 0, n_tasks, filename)  # create one entry synchronously
+            submit_job.delay(n_init, n_experiments, max_k, covars, columns, s3_file_key, filename, job_id, n_tasks)
+            flash('Your request with job ID "{}" and {} tasks is being submitted. Refresh this page for updates.'.format(
+                job_id, n_tasks), 'success')
+            # flash('Your request with job ID {} with {} tasks is being submitted. Please visit this URL in a few '
+            #       'seconds: {}.'.format(job_id, n_tasks, url_for('status', job_id=job_id, _external=True)), 'info')
+            return redirect(url_for('status', job_id=job_id))
 
         else:
             filename = secure_filename(file.filename)
@@ -199,6 +202,15 @@ def submit():
 
     else:
         return redirect(request.url)
+
+
+def create_task_on_dynamodb(job_id, task_id, n_tasks, filename):
+    id = generate_id(job_id, task_id)
+    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
+    table = dynamodb.Table(DYNAMO_TABLE)
+    item = dict(id=id, job_id=job_id, n_tasks=n_tasks, task_status='pending', filename=filename)
+    response = table.put_item(Item=item)
+    return response
 
 
 def generate_job_id():

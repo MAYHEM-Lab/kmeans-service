@@ -6,6 +6,7 @@ Author: Angad Gill
 
 import boto3
 import json
+import time
 
 from celery import Celery
 from config import DYNAMO_URL, DYNAMO_TABLE, DYNAMO_REGION, SNS_TOPIC_ARN, CELERY_BROKER
@@ -13,8 +14,12 @@ from config import DYNAMO_URL, DYNAMO_TABLE, DYNAMO_REGION, SNS_TOPIC_ARN, CELER
 app = Celery('jobs', broker=CELERY_BROKER)
 
 
+def generate_id(job_id, task_id):
+    return int('{}'.format(job_id)+'{0:04d}'.format(task_id))
+
+
 @app.task
-def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, job_id, n_tasks):
+def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, filename, job_id, n_tasks):
     task_status = 'pending'
     task_id = 0
     dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
@@ -24,10 +29,10 @@ def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, job_i
     for _ in range(n_experiments):
         for k in range(1, max_k+1):
             for covar in covars:
+                start_time = str(time.time())
                 covar_type, covar_tied = covar.lower().split('-')
                 covar_tied = covar_tied=='tied'
-                id = int('{}'.format(job_id)+'{0:04d}'.format(task_id))
-
+                id = generate_id(job_id, task_id)
                 sns_payload = dict(id=id, k=k, covar_type=covar_type, covar_tied=covar_tied, n_init=n_init,
                                    s3_file_key=s3_file_key, columns=columns)
                 sns_message = json.dumps(sns_payload)
@@ -36,7 +41,8 @@ def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, job_i
                 item = dict(id=id, job_id=job_id, task_id=task_id,
                             # sns_message=sns_message, sns_subject=sns_subject,
                             covar_type=covar_type, covar_tied=covar_tied, k=k, n_init=n_init, s3_file_key=s3_file_key,
-                            columns=columns, task_status=task_status, n_tasks=n_tasks)
+                            columns=columns, task_status=task_status, n_tasks=n_tasks, start_time=start_time,
+                            filename=filename)
                 dynamodb_response = table.put_item(Item=item)
                 sns_response = sns.publish(TopicArn=SNS_TOPIC_ARN, Message=sns_message, Subject=sns_subject)
                 task_id += 1
