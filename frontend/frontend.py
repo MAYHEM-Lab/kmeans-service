@@ -158,13 +158,18 @@ def report(job_id=None):
             flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
             redirect(url_for('status', job_id=job_id))
 
-        covar_type_tied_k = best_k(tasks)
+        results_df = tasks_to_df_grouped_by_bic_mean(tasks)
+        covar_type_tied_k = best_covar_type_tied_k(results_df)
+
+        s3_file_key = tasks[0]['s3_file_key']
+        columns = tasks[0]['columns'][:2]
+        data = s3_to_df(s3_file_key)
 
         fig = plot_aic_bic_fig(tasks)
         aic_bic_plot = fig_to_png(fig)
         aic_bic_plot = png_for_template(aic_bic_plot)
 
-        fig = plot_cluster_fig(tasks)
+        fig = plot_cluster_fig(data, columns, results_df)
         cluster_plot = fig_to_png(fig)
         cluster_plot = png_for_template(cluster_plot)
 
@@ -172,35 +177,30 @@ def report(job_id=None):
                                cluster_plot=cluster_plot, aic_bic_plot=aic_bic_plot)
 
 
-def png_for_template(png):
-    output = base64.b64encode(png.getvalue())
-    output = urllib.parse.quote(output)
-    return output
+def tasks_to_df_grouped_by_bic_mean(tasks):
+    """
+    Converts tasks data into a Pandas DataFrame, then groups and sorts by BIC value.
+    Response DF contains 'k', 'covar_type', 'covar_tied', 'bic', 'labels'
 
-
-def best_k(tasks):
+    """
     df = pd.DataFrame(tasks)
-    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic']]
+    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'labels']]
     df['bic'] = df['bic'].astype('float')
-    df = df.groupby(['covar_type', 'covar_tied', 'k']).mean()
+    df['k'] = df['k'].astype('int')
+    df['labels'] = df['labels'].apply(tuple)  # to make it hashable
+    df = df.groupby(['covar_type', 'covar_tied', 'k', 'labels']).mean()
     df = df.reset_index()
     df = df.sort_values('bic', ascending=False)
     df = df.groupby(['covar_type', 'covar_tied']).first()
     df = df.reset_index()
-    covar_type_tied_k = list(zip(df['covar_type'], df['covar_tied'], df['k'].astype('int')))
+    return df
+
+
+def best_covar_type_tied_k(results_df):
+    """ Converts a Pandas DataFrame that is grouped and sorted by BIC to a list of tuples. """
+    covar_type_tied_k = list(zip(results_df['covar_type'], results_df['covar_tied'], results_df['k']))
     return covar_type_tied_k
 
-
-# @app.route('/plot/<type>/<job_id>')
-# def plot(type=None, job_id=None):
-#     if type == 'aic_bic':
-#         sns.set(context='talk')
-#         tasks = get_tasks_from_dynamodb(job_id)
-#         fig = plot_aic_bic_fig(tasks)
-#         png_response = fig_to_png_response(fig)
-#     # if type ==
-#     return png_response
-#
 
 def plot_aic_bic_fig(tasks):
     sns.set(context='talk')
@@ -217,35 +217,16 @@ def plot_aic_bic_fig(tasks):
     return f.fig
 
 
-def s3_to_df(s3_file_key):
-    s3 = boto3.client('s3')
-    file_name = '/tmp/data_file'
-    s3.download_file(S3_BUCKET, s3_file_key, file_name)
-    df = pd.read_csv(file_name)
-    os.remove(file_name)
-    return df
-
-
-def plot_cluster_fig(tasks):
+def plot_cluster_fig(data, columns, results_df):
     """ Creates a 3x2 plot scatter plot using the first two columns """
     sns.set(context='talk')
-    df = pd.DataFrame(tasks)
-    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'labels']]
-    df['bic'] = df['bic'].astype('float')
-    df['labels'] = df['labels'].apply(tuple)  # to make it hashable
-    df = df.groupby(['covar_type', 'covar_tied', 'k', 'labels']).mean()
-    df = df.reset_index()
-    df = df.sort_values('bic', ascending=False)
-    df = df.groupby(['covar_type', 'covar_tied']).first()
-    df = df.reset_index()
-
-    s3_file_key = tasks[0]['s3_file_key']
-    columns = tasks[0]['columns']
-    data = s3_to_df(s3_file_key)
+    # df = tasks_to_df_grouped_by_bic_mean(tasks)
+    columns = columns[:2]
 
     fig = plt.figure()
     placement = {'full': {True: 1, False: 4}, 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
-    covar_type_tied_labels_k = zip(df['covar_type'], df['covar_tied'], df['labels'], df['k'])
+    covar_type_tied_labels_k = zip(results_df['covar_type'], results_df['covar_tied'], results_df['labels'],
+                                   results_df['k'])
     for covar_type, covar_tied, labels, k in covar_type_tied_labels_k:
         plt.subplot(2, 3, placement[covar_type][covar_tied])
         plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow, s=10)
@@ -255,6 +236,7 @@ def plot_cluster_fig(tasks):
 
 
 def fig_to_png_response(fig):
+    """ Converts a matplotlib figure to an http respose png. """
     output = fig_to_png(fig)
     response = make_response(output.getvalue())
     response.mimetype = 'image/png'
@@ -262,9 +244,21 @@ def fig_to_png_response(fig):
 
 
 def fig_to_png(fig):
+    """ Converts a matplotlib figure to a png (byte stream). """
     canvas = FigureCanvas(fig)
     output = io.BytesIO()
     canvas.print_png(output)
+    return output
+
+
+def png_for_template(png):
+    """
+    Encodes a png (byte stream) so it can be passed to Jinja HTML template
+
+    Usage in HTML:  <img src="data:image/png;base64,{{output}}"/>
+    """
+    output = base64.b64encode(png.getvalue())
+    output = urllib.parse.quote(output)
     return output
 
 
@@ -278,6 +272,16 @@ def upload_to_s3(filepath, filename, job_id):
     s3 = boto3.resource('s3')
     s3.meta.client.upload_file(filepath, S3_BUCKET, s3_file_key)
     return s3_file_key
+
+
+def s3_to_df(s3_file_key):
+    """ Downloads file from S3 and converts it to a Pandas DataFrame. """
+    s3 = boto3.client('s3')
+    file_name = '/tmp/data_file'
+    s3.download_file(S3_BUCKET, s3_file_key, file_name)
+    df = pd.read_csv(file_name)
+    os.remove(file_name)
+    return df
 
 
 @app.route('/submit', methods=['GET', 'POST'])
