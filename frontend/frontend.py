@@ -32,12 +32,9 @@ from flask import Flask, request, make_response, render_template, redirect, url_
 from werkzeug.utils import secure_filename
 
 import boto3
-from boto3.dynamodb.conditions import Attr
 
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-from matplotlib.figure import Figure
-from matplotlib.dates import DateFormatter
 import seaborn as sns
 import pandas as pd
 
@@ -96,8 +93,28 @@ def get_tasks_from_dynamodb(job_id):
     """ Get a list of all task entries in DynamoDB for the given job_id. """
     dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
     table = dynamodb.Table(DYNAMO_TABLE)
-    response = table.scan(FilterExpression=Attr('job_id').eq(int(job_id)))
-    tasks = response['Items']
+
+    tasks = []
+    task_id = 0
+    id = generate_id(job_id, task_id)
+    item = table.get_item(Key={'id': id})
+    if 'Item' not in item:
+        return []  # item doesn't exist
+    task = item['Item']
+    n_tasks = int(task['n_tasks'])
+
+    # Batch getter / reader script:
+    keys = [{'id': generate_id(job_id, i)} for i in range(n_tasks)]
+    batch_size = 25
+    batch_keys = []
+
+    while len(keys) > 0:
+        batch_keys = [keys.pop() for _ in range(min(batch_size - len(batch_keys), len(keys)))]
+        response = dynamodb.batch_get_item(RequestItems={DYNAMO_TABLE: {'Keys': batch_keys}})
+        batch_items = response['Responses'][DYNAMO_TABLE]
+        tasks += batch_items
+        batch_keys = response['UnprocessedKeys']
+
     return tasks
 
 
@@ -105,8 +122,9 @@ def job_id_exists(job_id):
     """ Get a list of all task entries in DynamoDB for the given job_id. """
     dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
     table = dynamodb.Table(DYNAMO_TABLE)
-    response = table.scan(FilterExpression=Attr('job_id').eq(int(job_id)))
-    return response['Count'] > 0
+    id = generate_id(job_id)
+    response = table.get_item(Key={'id':id})
+    return 'Item' in response
 
 
 @app.route('/report/', methods=['GET', 'POST'])
@@ -283,12 +301,16 @@ def submit():
 
             n_tasks = n_experiments * max_k * len(covars)
 
-            create_task_on_dynamodb(job_id, 0, n_tasks, filename)  # create one entry synchronously
+            # create one entry synchronously
+            create_task_on_dynamodb(job_id, 0, n_tasks, filename)
+            print('created 1 task synchronously')
+
+            # create all tasks asynchronously
             submit_job.delay(n_init, n_experiments, max_k, covars, columns, s3_file_key, filename, job_id, n_tasks)
+            print('creating all tasks asynchronously')
             flash('Your request with job ID "{}" and {} tasks is being submitted. Refresh this page for updates.'.format(
                 job_id, n_tasks), 'success')
-            # flash('Your request with job ID {} with {} tasks is being submitted. Please visit this URL in a few '
-            #       'seconds: {}.'.format(job_id, n_tasks, url_for('status', job_id=job_id, _external=True)), 'info')
+
             return redirect(url_for('status', job_id=job_id))
 
         else:
