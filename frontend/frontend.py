@@ -156,12 +156,13 @@ def report(job_id=None):
         aic_bic_plot = fig_to_png(fig)
         aic_bic_plot = png_for_template(aic_bic_plot)
 
-        fig = plot_cluster_fig(tasks)
-        cluster_plot = fig_to_png(fig)
-        cluster_plot = png_for_template(cluster_plot)
+        # fig = plot_cluster_fig(tasks)
+        # cluster_plot = fig_to_png(fig)
+        # cluster_plot = png_for_template(cluster_plot)
 
         return render_template('report.html', job_id=job_id, covar_type_tied_k=covar_type_tied_k,
-                               aic_bic_plot=aic_bic_plot, cluster_plot=cluster_plot)
+                               # cluster_plot=cluster_plot,
+                               aic_bic_plot=aic_bic_plot)
 
 
 def png_for_template(png):
@@ -173,6 +174,9 @@ def png_for_template(png):
 def best_k(tasks):
     df = pd.DataFrame(tasks)
     df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic']]
+    df['bic'] = df['bic'].astype('float')
+    df = df.groupby(['covar_type', 'covar_tied', 'k']).mean()
+    df = df.reset_index()
     df = df.sort_values('bic', ascending=False)
     df = df.groupby(['covar_type', 'covar_tied']).first()
     df = df.reset_index()
@@ -220,6 +224,9 @@ def plot_cluster_fig(tasks):
     sns.set(context='talk')
     df = pd.DataFrame(tasks)
     df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'labels']]
+    df['bic'] = df['bic'].astype('float')
+    df = df.groupby(['covar_type', 'covar_tied', 'k', 'labels']).mean()
+    df = df.reset_index()
     df = df.sort_values('bic', ascending=False)
     df = df.groupby(['covar_type', 'covar_tied']).first()
     df = df.reset_index()

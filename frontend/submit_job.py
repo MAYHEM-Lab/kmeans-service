@@ -26,6 +26,7 @@ def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, filen
     sns = boto3.client('sns')
 
     task_id = 0
+    sleep_time = 1
     with table.batch_writer() as batch:
         for _ in range(n_experiments):
             for k in range(1, max_k+1):
@@ -43,8 +44,15 @@ def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, filen
                                 covar_type=covar_type, covar_tied=covar_tied, k=k, n_init=n_init, s3_file_key=s3_file_key,
                                 columns=columns, task_status=task_status, n_tasks=n_tasks, start_time=start_time,
                                 filename=filename)
-                    batch.put_item(Item=item)
                     sns_response = sns.publish(TopicArn=SNS_TOPIC_ARN, Message=sns_message, Subject=sns_subject)
+                    try:
+                        batch.put_item(Item=item)
+                    except Exception as e:
+                        # Catch botocore.errorfactory.ProvisionedThroughputExceededException
+                        print(e)
+                        print('sleeping for {} seconds...'.format(sleep_time))
+                        time.sleep(sleep_time)
+                        sleep_time *= 2
                     task_id += 1
 
 
