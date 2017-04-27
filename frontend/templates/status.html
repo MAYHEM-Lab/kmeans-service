@@ -1,9 +1,27 @@
 {% extends "base.html" %}
 {% block body %}
-  <h2>Status for job ID: {{job_id}}</h2>
-  <p>{{n_tasks_submitted}}/{{n_tasks}} jobs submitted and {{n_tasks_done}}/{{n_tasks}} [{{per_done}}%] done!</p>
-  <p>File used: {{tasks[0].filename}}</p>
-  <p>Columns used: {{tasks[0].columns|join(', ')}}</p>
+  <h1>Status for Job ID: {{job_id}}</h1>
+  <p class="text-muted">
+    Submited at {{start_time_clock}} on {{start_time_date}} (Pacific Time) <br>
+    File: "{{tasks[0].filename}}". Columns: "{{tasks[0].columns|join('", "')}}".
+  </p>
+  <!--<p>{{stats['n_tasks_submitted']}}/{{stats['n_tasks']}} jobs submitted and {{stats['n_tasks_done']}}/{{stats['n_tasks']}} [{{per_done}}%] done!</p>-->
+  <p class="lead">Task completion progress:</p>
+  <div class="progress">
+    <div class="progress-bar bg-success" role="progressbar" style="width:{{stats['per_done']}}%"
+         aria-valuenow="{{stats['per_done']}}" aria-valuemin="0" aria-valuemax="100"></div>
+    <div class="progress-bar bg-info" role="progressbar" style="width:{{stats['per_pending']}}%"
+         aria-valuenow="{{stats['per_pending']}}" aria-valuemin="0" aria-valuemax="100"></div>
+    <div class="progress-bar bg-danger" role="progressbar" style="width:{{stats['per_error']}}%"
+         aria-valuenow="{{stats['per_error']}}" aria-valuemin="0" aria-valuemax="100"></div>
+  </div>
+  <p class="text-muted">
+    Total: {{stats['n_tasks']}},
+    Submitted: {{stats['n_tasks_submitted']}} ({{stats['per_submitted']}}%),
+    Done: {{stats['n_tasks_done']}} ({{stats['per_done']}}%),
+    Error: {{stats['n_tasks_error']}} ({{stats['per_error']}}%),
+    Pending: {{stats['n_tasks_pending']}} ({{stats['per_pending']}}%)
+  </p>
   {% if n_tasks==n_tasks_done %}
     <p><a class="btn btn-primary" href="{{url_for('report', job_id=job_id)}}" role="button">All Done! View report »</a></p>
   {% endif %}
@@ -18,7 +36,7 @@
         <th>BIC</th>
         <th>AIC</th>
         <th>Status</th>
-        <th>Re-run</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -40,8 +58,8 @@
           <form class="form" method="post" name="rerun" action="{{url_for('rerun')}}">
             <input type="hidden" id="job_id" name="job_id" value="{{task.job_id}}">
             <input type="hidden" id="task_id" name="task_id" value="{{task.task_id}}">
-            <button type="submit" class="btn btn-info">
-              <span class="glyphicon glyphicon-repeat"></span>
+            <button type="submit" class="btn btn-outline-info btn-sm">
+              <i class="glyphicon glyphicon-repeat" aria-hidden="true"></i>Rerun
             </button>
           </form>
         </td>

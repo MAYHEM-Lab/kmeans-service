@@ -5,27 +5,18 @@
 {% block body %}
 
 <div class="jumbotron">
-  <h1>Cluster your data.</h1>
+  <h1 class="display-4">Cluster your data.</h1>
   <p class="lead">
-    This service will analyze your data to determine the best number of clusters for it.
-  </p>
-  <p class="lead">
-    It clusters your data using the K-Means algorithm with Mahalanois distance for a range of values for "K", then uses
-    Bayesian Information Criteria (BIC) to pick the "K" that best fits the data.
+    This service analyzes data to determine the best number of clusters for it, using K-Means algorithm with
+    Mahalanois distance and Bayesian Information Criteria.
   </p>
 </div>
 
 <div class="row">
   <div class="col-md-6">
-    <h2>New Analysis</h2>
+    <h3>New Analysis</h3>
     <p>Upload your data file here to start a new analysis:</p>
     <form method="post" enctype="multipart/form-data" action="{{url_for('submit')}}">
-      <!--<div class="form-group row">-->
-        <!--<label for="job_id" class="col-2 col-form-label">JOB_ID:</label>-->
-        <!--<div class="col-10">-->
-          <!--<input class="form-control" type="number" value="0" id="job_id" name="job_id" min="0" >-->
-        <!--</div>-->
-      <!--</div>-->
       <div class="form-group row">
         <label for="n_experiments" class="col-2 col-form-label">n_exp:</label>
         <div class="col-10">
@@ -77,15 +68,6 @@
             "Longitude" and "Latitude" will be ignored for clustering.
           </small>
         </div>
-        <!--<div class="col-10">-->
-          <!--<input type="file" class="custom-file-input form-control-file" id="file" name="file">-->
-          <!--<div class="custom-file-control"></div>-->
-          <!--<small id="file_help" class="form-text text-muted">-->
-            <!--Only '.csv' files smaller than 256MB in size are allowed.-->
-            <!--The files must have a header with column names.-->
-            <!--"Longitude" and "Latitude" will be ignored for clustering.-->
-          <!--</small>-->
-        <!--</div>-->
       </div>
       <div class="form-group row">
         <label for="submit" class="col-2 col-form-label"></label>
@@ -99,7 +81,7 @@
   <div class="col-md-6">
     <div class="row">
       <div class="col-md-12">
-        <h2>Check Status</h2>
+        <h3>Check Status</h3>
         <p>Check the status of a previously submitted job here:</p>
         <form class="form-inline" method="get" name="status" action="{{url_for('status')}}">
           <!--<label class="mr-sm-2" for="job_id">Get job status</label>-->
@@ -111,12 +93,11 @@
     </div>
     <div class="row">
       <div class="col-md-12">
-        <h2>View Report</h2>
+        <h3>View Report</h3>
         <p>View the report for a previously submitted job here:</p>
         <form class="form-inline" method="get" name="status" action="{{url_for('report')}}">
-          <!--<label class="mr-sm-2" for="job_id">Get job status</label>-->
           <input type="number" class="form-control mb-2 mr-sm-2 mb-sm-0" id="job_id" name="job_id" placeholder="Job ID">
-          <button type="submit" class="btn btn-primary">Check</button>
+          <button type="submit" class="btn btn-primary">View</button>
         </form>
         <p></p>
       </div>
@@ -128,44 +109,62 @@
 
 <div class="row">
   <div class="col-md-12">
-    <h2>Examples</h2>
+    <h3>Examples</h3>
     <p>Demonstration of the usefullness of this analysis on synthetic datasets:</p>
   </div>
 </div>
 
-<div class="row">
+<div class="row" style="text-align:center">
   <div class="col-md-4">
-    <h4>Normal</h4>
+    <p class="lead">Normal
+    <img src="{{url_for('static', filename='normal.png')}}" class="img-fluid float-left">
+    </p>
+    <!--<p class="text-muted">Three clusters of normally distributed data.-->
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=0)}}" role="button">View Report »</a></p>
     <p></p>
-    <p><a class="btn btn-secondary" href="{{url_for('report', job_id=0)}}" role="button">View example »</a></p>
   </div>
   <div class="col-md-4">
-    <h4>Skewed 1</h4>
+    <p class="lead">Skewed 1
+    <img src="{{url_for('static', filename='skewed1.png')}}" class="img-fluid float-left">
+    </p>
+    <!--<p class="text-muted">Three clusters of skewed data.-->
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=1)}}" role="button">View Report »</a></p>
     <p></p>
-    <p><a class="btn btn-secondary" href="{{url_for('report', job_id=1)}}" role="button">View example »</a></p>
   </div>
   <div class="col-md-4">
-    <h4>Skewed 2</h4>
+    <p class="lead">Skewed 2
+    <img src="{{url_for('static', filename='skewed2.png')}}" class="img-fluid float-left">
+    </p>
+    <!--<p class="text-muted">Three clusters of skewed data.-->
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=2)}}" role="button">View Report »</a></p>
     <p></p>
-    <p><a class="btn btn-secondary" href="{{url_for('report', job_id=2)}}" role="button">View example »</a></p>
   </div>
 </div>
 
-<div class="row">
+<div class="row" style="text-align:center">
   <div class="col-md-4">
-    <h4>Skewed 3</h4>
+    <p class="lead">Skewed 3
+    <img src="{{url_for('static', filename='skewed3.png')}}" class="img-fluid float-left">
+    </p>
+    <!--<p class="text-muted">Three clusters of skewed data.-->
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=3)}}" role="button">View Report »</a></p>
     <p></p>
-    <p><a class="btn btn-secondary" href="{{url_for('report', job_id=3)}}" role="button">View example »</a></p>
   </div>
   <div class="col-md-4">
-    <h4>Skewed 4</h4>
+    <p class="lead">Skewed 4
+    <img src="{{url_for('static', filename='skewed4.png')}}" class="img-fluid float-left">
+    </p>
+    <!--<p class="text-muted">Three clusters of skewed data.-->
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=4)}}" role="button">View Report »</a></p>
     <p></p>
-    <p><a class="btn btn-secondary" href="{{url_for('report', job_id=4)}}" role="button">View example »</a></p>
   </div>
   <div class="col-md-4">
-    <h4>Skewed 5</h4>
+    <p class="lead">Skewed 5
+    <img src="{{url_for('static', filename='skewed5.png')}}" class="img-fluid float-left">
+    </p>
+    <!--<p class="text-muted">Three clusters of skewed data.-->
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=5)}}" role="button">View Report »</a></p>
     <p></p>
-    <p><a class="btn btn-secondary" href="{{url_for('report', job_id=5)}}" role="button">View example »</a></p>
   </div>
 </div>
 {% endblock %}

@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
     <!--<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">-->
     <!-- Custom styles for this template -->
-    <!--<link href="https://getbootstrap.com/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">-->
+    <link href="https://getbootstrap.com/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
 
     <script src="https://code.jquery.com/jquery-3.1.1.slim.min.js" integrity="sha384-A7FZj7v+d/sdmMqp/nOQwliLvUsJfDHW+k9Omg/a/EheAdgtzNs3hpfag6Ed950n" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
@@ -16,14 +16,30 @@
 
   </head>
   <body>
-      <nav class="navbar navbar-default">
-        <div class="container">
-          <div class="navbar-header">
-            <a href="/" class="navbar-brand">Home</a>
-          </div>
-        </div>
+    <!--<nav class="navbar navbar-default">-->
+      <!--<div class="container">-->
+        <!--<div class="navbar-header">-->
+          <!--<a href="/" class="navbar-brand">Home</a>-->
+        <!--</div>-->
+      <!--</div>-->
+    <!--</nav>-->
+  <div class="container">
+    <div class="header clearfix">
+      <nav>
+        <ul class="nav nav-pills float-right">
+          <li class="nav-item">
+            <a class="nav-link" href="/">Home</a>
+          </li>
+          <!--<li class="nav-item">-->
+            <!--<a class="nav-link" href="#">About</a>-->
+          <!--</li>-->
+          <!--<li class="nav-item">-->
+            <!--<a class="nav-link" href="#">Contact</a>-->
+          <!--</li>-->
+        </ul>
       </nav>
-    <div class="container">
+      <h3 class="text-muted">K-Means Service</h3>
+    </div>
       {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
@@ -38,7 +54,7 @@
 
       {% block body %}
       {% endblock %}
-      <hr>
+      <!--<hr>-->
       <footer class="footer">
         <p>Built at UC Santa Barbara in the <a href="https://www.cs.ucsb.edu/~ckrintz/racelab.html">RACELab</a>.</p>
       </footer>

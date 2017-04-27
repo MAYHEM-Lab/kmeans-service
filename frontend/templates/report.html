@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block body %}
-  <h2>Report for job_id: {{job_id}}</h2>
-  <p>Recommended number of clusters based on the best (highest) BIC score:</p>
+  <h1>Report for Job ID: {{job_id}}</h1>
+  <p class="text-muted"> Submited at {{start_time_clock}} on {{start_time_date}} (Pacific Time)</p>
+  <p class="lead">Recommended number of clusters based on the best (highest) BIC score:</p>
     <table class="table table-hover">
       <thead>
         <tr>
@@ -19,7 +20,7 @@
       </tbody>
     </table>
   {% if cluster_plot %}
-  <h3>Clusters:</h3>
+  <h3>Cluster Plots</h3>
   <p>
     Recommended cluster assignments are visualized below using the first two columns ({{columns|join(', ')}}) in the
     dataset:
@@ -28,7 +29,7 @@
   {% endif %}
 
   {% if spatial_cluster_plot %}
-  <h3>Spatial Clusters:</h3>
+  <h3>Spatial Cluster Plots</h3>
   <p>
     Recommended cluster assignments are visualized below using the Latitude and Longitude columns in the data:
   </p>
@@ -36,7 +37,7 @@
   {% endif %}
 
   {% if aic_bic_plot %}
-  <h3>AIC and BIC Plots:</h3>
+  <h3>AIC and BIC Plots</h3>
   <p>
     Akaike Information Critieria (AIC) and Bayesian Information Criteria (BIC) for all covariance and "k" values,
     shown with 95% confidence intervals.

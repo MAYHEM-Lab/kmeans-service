@@ -84,10 +84,22 @@ def status(job_id=None):
 
         n_tasks = tasks[0]['n_tasks']
         n_tasks_submitted = len(tasks)
+        per_submitted = '{:.1f}'.format(n_tasks_submitted/n_tasks*100)
         n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
         per_done = '{:.1f}'.format(n_tasks_done/n_tasks*100)
-        return render_template('status.html', job_id=job_id, n_tasks=n_tasks, n_tasks_submitted=n_tasks_submitted,
-                               n_tasks_done=n_tasks_done, per_done=per_done, tasks=tasks)
+        n_tasks_pending = len([x for x in tasks if x['task_status'] == 'pending'])
+        per_pending = '{:.1f}'.format(n_tasks_pending/n_tasks*100)
+        n_tasks_error = len([x for x in tasks if x['task_status'] == 'error'])
+        per_error = '{:.1f}'.format(n_tasks_error/n_tasks*100)
+
+        stats = dict(n_tasks=n_tasks, n_tasks_done=n_tasks_done, per_done=per_done, n_tasks_pending=n_tasks_pending,
+                     per_pending=per_pending, n_tasks_error=n_tasks_error, per_error=per_error,
+                     n_tasks_submitted=n_tasks_pending, per_submitted=per_submitted)
+
+        start_time_date, start_time_clock = format_date_time(tasks[0]['start_time'])
+
+        return render_template('status.html', job_id=job_id, stats=stats, per_done=per_done, tasks=tasks,
+                               start_time_date=start_time_date, start_time_clock=start_time_clock)
 
 
 def get_tasks_from_dynamodb(job_id):
@@ -159,6 +171,8 @@ def report(job_id=None):
             flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
             redirect(url_for('status', job_id=job_id))
 
+        start_time_date, start_time_clock = format_date_time(tasks[0]['start_time'])
+
         results_df = tasks_to_df_grouped_by_bic_mean(tasks)
         covar_type_tied_k = best_covar_type_tied_k(results_df)
 
@@ -172,13 +186,23 @@ def report(job_id=None):
         fig = plot_cluster_fig(data, columns, results_df)
         cluster_plot = png_for_template(fig_to_png(fig))
 
-        fig = plot_spatial_cluster_fig(data, results_df)
-        spatial_cluster_plot = png_for_template(fig_to_png(fig))
-
+        spatial_cluster_plot = None
+        if spatial_columns_exist(data):
+            fig = plot_spatial_cluster_fig(data, results_df)
+            spatial_cluster_plot = png_for_template(fig_to_png(fig))
 
         return render_template('report.html', job_id=job_id, covar_type_tied_k=covar_type_tied_k,
                                cluster_plot=cluster_plot, aic_bic_plot=aic_bic_plot,
-                               spatial_cluster_plot=spatial_cluster_plot, columns=columns)
+                               spatial_cluster_plot=spatial_cluster_plot, columns=columns,
+                               start_time_date=start_time_date, start_time_clock=start_time_clock)
+
+
+def format_date_time(start_time_str):
+    """ Converts epoch time string to (Date, Time) formated as ('04 April 2017', '11:01 AM') """
+    start_time = time.localtime(float(start_time_str))
+    start_time_date = time.strftime("%m %B %Y", start_time)
+    start_time_clock = time.strftime("%H:%M %p", start_time)
+    return start_time_date, start_time_clock
 
 
 def tasks_to_df_grouped_by_bic_mean(tasks):
@@ -223,7 +247,7 @@ def plot_aic_bic_fig(tasks):
 
 def plot_cluster_fig(data, columns, results_df):
     """ Creates a 3x2 plot scatter plot using the first two columns """
-    sns.set(context='talk')
+    sns.set(context='talk', style='white')
     # df = tasks_to_df_grouped_by_bic_mean(tasks)
     columns = columns[:2]
 
@@ -243,7 +267,7 @@ def plot_cluster_fig(data, columns, results_df):
 
 def plot_spatial_cluster_fig(data, results_df):
     """ Creates a 3x2 plot scatter plot using the first two columns """
-    sns.set(context='talk')
+    sns.set(context='talk', style='white')
     # df = tasks_to_df_grouped_by_bic_mean(tasks)
 #     columns = columns[:2]
     data.columns = [c.lower() for c in data.columns]
@@ -252,9 +276,11 @@ def plot_spatial_cluster_fig(data, results_df):
     placement = {'full': {True: 1, False: 4}, 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
     covar_type_tied_labels_k = zip(results_df['covar_type'], results_df['covar_tied'], results_df['labels'],
                                    results_df['k'])
+
     for covar_type, covar_tied, labels, k in covar_type_tied_labels_k:
         plt.subplot(2, 3, placement[covar_type][covar_tied])
         plt.scatter(data['longitude'], data['latitude'], c=labels, cmap=plt.cm.rainbow, s=10)
+        plt.tick_params(axis='both', which='both', bottom='off', top='off', labelbottom='off', right='off', left='off', labelleft='off')
         plt.xlabel('Longitude')
         plt.ylabel('Latitude')
         plt.title('{}-{}, k={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
