@@ -116,9 +116,10 @@ def lambda_handler(event, context):
         # time.sleep(5)
 
         response = update_at_dynamo(id, aic, bic, elapsed_time, elapsed_read_time, elapsed_processing_time, labels)
-    except Exception, e:
+    except Exception as e:
         response = update_at_dynamo_error(id)
-        print(e)
+        # print(e)
+        raise Exception(e)
     return message
 
 

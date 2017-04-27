@@ -45,6 +45,9 @@ def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, filen
                                 columns=columns, task_status=task_status, n_tasks=n_tasks, start_time=start_time,
                                 filename=filename)
                     sns_response = sns.publish(TopicArn=SNS_TOPIC_ARN, Message=sns_message, Subject=sns_subject)
+                    if task_id < 10:
+                        print('task_id: {}'.format(task_id))
+                        print(sns_response)
                     try:
                         batch.put_item(Item=item)
                     except Exception as e:
@@ -54,6 +57,7 @@ def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, filen
                         time.sleep(sleep_time)
                         sleep_time *= 2
                     task_id += 1
+                    # time.sleep(0.25)
 
 
 @app.task

@@ -107,13 +107,21 @@ def get_tasks_from_dynamodb(job_id):
     keys = [{'id': generate_id(job_id, i)} for i in range(n_tasks)]
     batch_size = 25
     batch_keys = []
+    sleep_time = 1
 
     while len(keys) > 0:
         batch_keys = [keys.pop() for _ in range(min(batch_size - len(batch_keys), len(keys)))]
-        response = dynamodb.batch_get_item(RequestItems={DYNAMO_TABLE: {'Keys': batch_keys}})
-        batch_items = response['Responses'][DYNAMO_TABLE]
-        tasks += batch_items
-        batch_keys = response['UnprocessedKeys']
+        try:
+            response = dynamodb.batch_get_item(RequestItems={DYNAMO_TABLE: {'Keys': batch_keys}})
+            batch_items = response['Responses'][DYNAMO_TABLE]
+            tasks += batch_items
+            batch_keys = response['UnprocessedKeys']
+        except Exception as e:
+            # Catch botocore.errorfactory.ProvisionedThroughputExceededException
+            print(e)
+            print('get_tasks_from_dynamodb. sleeping for {} seconds'.format(sleep_time))
+            time.sleep(sleep_time)
+            sleep_time *= 2
 
     return tasks
 
@@ -156,13 +164,12 @@ def report(job_id=None):
         aic_bic_plot = fig_to_png(fig)
         aic_bic_plot = png_for_template(aic_bic_plot)
 
-        # fig = plot_cluster_fig(tasks)
-        # cluster_plot = fig_to_png(fig)
-        # cluster_plot = png_for_template(cluster_plot)
+        fig = plot_cluster_fig(tasks)
+        cluster_plot = fig_to_png(fig)
+        cluster_plot = png_for_template(cluster_plot)
 
         return render_template('report.html', job_id=job_id, covar_type_tied_k=covar_type_tied_k,
-                               # cluster_plot=cluster_plot,
-                               aic_bic_plot=aic_bic_plot)
+                               cluster_plot=cluster_plot, aic_bic_plot=aic_bic_plot)
 
 
 def png_for_template(png):
@@ -225,6 +232,7 @@ def plot_cluster_fig(tasks):
     df = pd.DataFrame(tasks)
     df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'labels']]
     df['bic'] = df['bic'].astype('float')
+    df['labels'] = df['labels'].apply(tuple)  # to make it hashable
     df = df.groupby(['covar_type', 'covar_tied', 'k', 'labels']).mean()
     df = df.reset_index()
     df = df.sort_values('bic', ascending=False)
@@ -237,10 +245,11 @@ def plot_cluster_fig(tasks):
 
     fig = plt.figure()
     placement = {'full': {True: 1, False: 4}, 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
-    for covar_type, covar_tied, labels in zip(df['covar_type'], df['covar_tied'], df['labels']):
+    covar_type_tied_labels_k = zip(df['covar_type'], df['covar_tied'], df['labels'], df['k'])
+    for covar_type, covar_tied, labels, k in covar_type_tied_labels_k:
         plt.subplot(2, 3, placement[covar_type][covar_tied])
-        plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow)
-        plt.title('{}-{}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied]))
+        plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow, s=10)
+        plt.title('{}-{}, k={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
     plt.tight_layout()
     return fig
 
@@ -292,8 +301,8 @@ def submit():
                 os.mkdir(UPLOAD_FOLDER)
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
-            job_id = int(request.form.get('job_id'))
-            # job_id = generate_job_id()
+            # job_id = int(request.form.get('job_id'))
+            job_id = generate_job_id()
             s3_file_key = upload_to_s3(filepath, filename, job_id)
             # flash('File "{}" uploaded successfully!'.format(filename), 'success')
 
