@@ -45,6 +45,7 @@ from config import DYNAMO_URL, DYNAMO_TABLE, DYNAMO_REGION, S3_BUCKET
 UPLOAD_FOLDER = 'data'
 ALLOWED_EXTENSIONS = set(['csv'])
 EXCLUDE_COLUMNS = ['longitude', 'latitude']
+SPATIAL_COLUMNS = ['longitude', 'latitude']
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -162,19 +163,22 @@ def report(job_id=None):
         covar_type_tied_k = best_covar_type_tied_k(results_df)
 
         s3_file_key = tasks[0]['s3_file_key']
-        columns = tasks[0]['columns'][:2]
+        columns = tasks[0]['columns'][:2]  # Visualization done only for the first two columns
         data = s3_to_df(s3_file_key)
 
         fig = plot_aic_bic_fig(tasks)
-        aic_bic_plot = fig_to_png(fig)
-        aic_bic_plot = png_for_template(aic_bic_plot)
+        aic_bic_plot = png_for_template(fig_to_png(fig))
 
         fig = plot_cluster_fig(data, columns, results_df)
-        cluster_plot = fig_to_png(fig)
-        cluster_plot = png_for_template(cluster_plot)
+        cluster_plot = png_for_template(fig_to_png(fig))
+
+        fig = plot_spatial_cluster_fig(data, results_df)
+        spatial_cluster_plot = png_for_template(fig_to_png(fig))
+
 
         return render_template('report.html', job_id=job_id, covar_type_tied_k=covar_type_tied_k,
-                               cluster_plot=cluster_plot, aic_bic_plot=aic_bic_plot)
+                               cluster_plot=cluster_plot, aic_bic_plot=aic_bic_plot,
+                               spatial_cluster_plot=spatial_cluster_plot, columns=columns)
 
 
 def tasks_to_df_grouped_by_bic_mean(tasks):
@@ -230,9 +234,39 @@ def plot_cluster_fig(data, columns, results_df):
     for covar_type, covar_tied, labels, k in covar_type_tied_labels_k:
         plt.subplot(2, 3, placement[covar_type][covar_tied])
         plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow, s=10)
+        plt.xlabel(columns[0])
+        plt.ylabel(columns[1])
         plt.title('{}-{}, k={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
     plt.tight_layout()
     return fig
+
+
+def plot_spatial_cluster_fig(data, results_df):
+    """ Creates a 3x2 plot scatter plot using the first two columns """
+    sns.set(context='talk')
+    # df = tasks_to_df_grouped_by_bic_mean(tasks)
+#     columns = columns[:2]
+    data.columns = [c.lower() for c in data.columns]
+
+    fig = plt.figure()
+    placement = {'full': {True: 1, False: 4}, 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
+    covar_type_tied_labels_k = zip(results_df['covar_type'], results_df['covar_tied'], results_df['labels'],
+                                   results_df['k'])
+    for covar_type, covar_tied, labels, k in covar_type_tied_labels_k:
+        plt.subplot(2, 3, placement[covar_type][covar_tied])
+        plt.scatter(data['longitude'], data['latitude'], c=labels, cmap=plt.cm.rainbow, s=10)
+        plt.xlabel('Longitude')
+        plt.ylabel('Latitude')
+        plt.title('{}-{}, k={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
+    plt.tight_layout()
+    return fig
+
+
+def spatial_columns_exist(data):
+    """ Returns True if one of each SPATIAL_COLUMNS exist in data (Pandas DataFrame). """
+    columns = [c.lower() for c in data.columns]
+    exist = [c in columns for c in SPATIAL_COLUMNS]
+    return sum(exist) == 2
 
 
 def fig_to_png_response(fig):
