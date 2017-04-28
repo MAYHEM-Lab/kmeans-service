@@ -1,7 +1,12 @@
 {% extends "base.html" %}
+{% block title %}K-Means - Report - {{job_id}}{% endblock %}
 {% block body %}
   <h1>Report for Job ID: {{job_id}}</h1>
-  <p class="text-muted"> Submited at {{start_time_clock}} on {{start_time_date}} (Pacific Time)</p>
+  <p class="text-muted">
+    Submitted at {{start_time_clock}} on {{start_time_date}} (Pacific Time)
+    <br> File: "{{task_0.filename}}". Columns: "{{task_0.columns|join('", "')}}".
+    <!--<br> n_exp:{{task_0.n_experiments}}, max_k:{{task_0.max_k}}, n_init:{{task_0.n_init}}.-->
+  </p>
   <p class="lead">Recommended number of clusters based on the best (highest) BIC score:</p>
     <table class="table table-hover">
       <thead>
@@ -39,7 +44,7 @@
   {% if aic_bic_plot %}
   <h3>AIC and BIC Plots</h3>
   <p>
-    Akaike Information Critieria (AIC) and Bayesian Information Criteria (BIC) for all covariance and "k" values,
+    Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC) for all covariance and "k" values,
     shown with 95% confidence intervals.
   </p>
   <img src="data:image/png;base64,{{aic_bic_plot}}" class="img-fluid"/>

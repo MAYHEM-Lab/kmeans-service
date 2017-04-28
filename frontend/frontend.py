@@ -10,42 +10,39 @@ Purposes of this server:
 5) Future: Re-run tasks that failed
 
 Architecture:
-Frontend Flask server --> Amazon SNS --> Amazon Lambda
-    |           |                           |   ^
-    v           v                           |   |
-Amazon         Amazon    <------------------+   |
-S3             DynamoDB                         |
-    |                                           |
-    +-------------------------------------------+
+Frontend Flask server ---> Amazon SNS ---> Amazon Lambda or Celery Worker
+    |           |         (N/A if using     |       ^
+                           Celery Worker)   |       |
+    |           |                           |       |
+    v           v                           |       |
+Amazon         Amazon    <------------------+-------+
+S3             DynamoDB                             |
+    |                                               |
+    +-----------------------------------------------+
 
 Author: Angad Gill
 """
-
 import os
-import io
-import random
 import time
-import base64
-import urllib.parse
 
-from flask import Flask, request, make_response, render_template, redirect, url_for, flash
+from flask import Flask, request, render_template, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 
-import boto3
+from utils import get_item_by_id, job_id_exists
+from utils import get_tasks_from_dynamodb, put_first_task_by_job_id
+from utils import generate_job_id, generate_id
+from utils import format_date_time
+from utils import tasks_to_best_results, best_covar_type_tied_k
+from utils import plot_cluster_fig, plot_spatial_cluster_fig, plot_aic_bic_fig, png_for_template
+from utils import fig_to_png, spatial_columns_exist
+from utils import allowed_file, upload_to_s3, s3_to_df
 
-from matplotlib import pyplot as plt
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-import seaborn as sns
+from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS
+
 import pandas as pd
 
-from submit_job import submit_job, generate_id, submit_task
+from submit_job import submit_job, submit_task
 
-from config import DYNAMO_URL, DYNAMO_TABLE, DYNAMO_REGION, S3_BUCKET
-
-UPLOAD_FOLDER = 'data'
-ALLOWED_EXTENSIONS = set(['csv'])
-EXCLUDE_COLUMNS = ['longitude', 'latitude']
-SPATIAL_COLUMNS = ['longitude', 'latitude']
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -84,68 +81,22 @@ def status(job_id=None):
 
         n_tasks = tasks[0]['n_tasks']
         n_tasks_submitted = len(tasks)
-        per_submitted = '{:.1f}'.format(n_tasks_submitted/n_tasks*100)
+        per_submitted = '{:.0f}'.format(n_tasks_submitted/n_tasks*100)
         n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
-        per_done = '{:.1f}'.format(n_tasks_done/n_tasks*100)
+        per_done = '{:.0f}'.format(n_tasks_done/n_tasks*100)
         n_tasks_pending = len([x for x in tasks if x['task_status'] == 'pending'])
-        per_pending = '{:.1f}'.format(n_tasks_pending/n_tasks*100)
+        per_pending = '{:.0f}'.format(n_tasks_pending/n_tasks*100)
         n_tasks_error = len([x for x in tasks if x['task_status'] == 'error'])
-        per_error = '{:.1f}'.format(n_tasks_error/n_tasks*100)
+        per_error = '{:.0f}'.format(n_tasks_error/n_tasks*100)
 
         stats = dict(n_tasks=n_tasks, n_tasks_done=n_tasks_done, per_done=per_done, n_tasks_pending=n_tasks_pending,
                      per_pending=per_pending, n_tasks_error=n_tasks_error, per_error=per_error,
-                     n_tasks_submitted=n_tasks_pending, per_submitted=per_submitted)
+                     n_tasks_submitted=n_tasks_submitted, per_submitted=per_submitted)
 
         start_time_date, start_time_clock = format_date_time(tasks[0]['start_time'])
 
         return render_template('status.html', job_id=job_id, stats=stats, per_done=per_done, tasks=tasks,
                                start_time_date=start_time_date, start_time_clock=start_time_clock)
-
-
-def get_tasks_from_dynamodb(job_id):
-    """ Get a list of all task entries in DynamoDB for the given job_id. """
-    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
-    table = dynamodb.Table(DYNAMO_TABLE)
-
-    tasks = []
-    task_id = 0
-    id = generate_id(job_id, task_id)
-    item = table.get_item(Key={'id': id})
-    if 'Item' not in item:
-        return []  # item doesn't exist
-    task = item['Item']
-    n_tasks = int(task['n_tasks'])
-
-    # Batch getter / reader script:
-    keys = [{'id': generate_id(job_id, i)} for i in range(n_tasks)]
-    batch_size = 25
-    batch_keys = []
-    sleep_time = 1
-
-    while len(keys) > 0:
-        batch_keys = [keys.pop() for _ in range(min(batch_size - len(batch_keys), len(keys)))]
-        try:
-            response = dynamodb.batch_get_item(RequestItems={DYNAMO_TABLE: {'Keys': batch_keys}})
-            batch_items = response['Responses'][DYNAMO_TABLE]
-            tasks += batch_items
-            batch_keys = response['UnprocessedKeys']
-        except Exception as e:
-            # Catch botocore.errorfactory.ProvisionedThroughputExceededException
-            print(e)
-            print('get_tasks_from_dynamodb. sleeping for {} seconds'.format(sleep_time))
-            time.sleep(sleep_time)
-            sleep_time *= 2
-
-    return tasks
-
-
-def job_id_exists(job_id):
-    """ Get a list of all task entries in DynamoDB for the given job_id. """
-    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
-    table = dynamodb.Table(DYNAMO_TABLE)
-    id = generate_id(job_id)
-    response = table.get_item(Key={'id':id})
-    return 'Item' in response
 
 
 @app.route('/report/', methods=['GET', 'POST'])
@@ -173,17 +124,17 @@ def report(job_id=None):
 
         start_time_date, start_time_clock = format_date_time(tasks[0]['start_time'])
 
-        results_df = tasks_to_df_grouped_by_bic_mean(tasks)
+        results_df = tasks_to_best_results(tasks)
         covar_type_tied_k = best_covar_type_tied_k(results_df)
 
         s3_file_key = tasks[0]['s3_file_key']
-        columns = tasks[0]['columns'][:2]  # Visualization done only for the first two columns
+        viz_columns = tasks[0]['columns'][:2]  # Visualization done only for the first two columns
         data = s3_to_df(s3_file_key)
 
         fig = plot_aic_bic_fig(tasks)
         aic_bic_plot = png_for_template(fig_to_png(fig))
 
-        fig = plot_cluster_fig(data, columns, results_df)
+        fig = plot_cluster_fig(data, viz_columns, results_df)
         cluster_plot = png_for_template(fig_to_png(fig))
 
         spatial_cluster_plot = None
@@ -193,156 +144,9 @@ def report(job_id=None):
 
         return render_template('report.html', job_id=job_id, covar_type_tied_k=covar_type_tied_k,
                                cluster_plot=cluster_plot, aic_bic_plot=aic_bic_plot,
-                               spatial_cluster_plot=spatial_cluster_plot, columns=columns,
-                               start_time_date=start_time_date, start_time_clock=start_time_clock)
-
-
-def format_date_time(start_time_str):
-    """ Converts epoch time string to (Date, Time) formated as ('04 April 2017', '11:01 AM') """
-    start_time = time.localtime(float(start_time_str))
-    start_time_date = time.strftime("%m %B %Y", start_time)
-    start_time_clock = time.strftime("%H:%M %p", start_time)
-    return start_time_date, start_time_clock
-
-
-def tasks_to_df_grouped_by_bic_mean(tasks):
-    """
-    Converts tasks data into a Pandas DataFrame, then groups and sorts by BIC value.
-    Response DF contains 'k', 'covar_type', 'covar_tied', 'bic', 'labels'
-
-    """
-    df = pd.DataFrame(tasks)
-    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'labels']]
-    df['bic'] = df['bic'].astype('float')
-    df['k'] = df['k'].astype('int')
-    df['labels'] = df['labels'].apply(tuple)  # to make it hashable
-    df = df.groupby(['covar_type', 'covar_tied', 'k', 'labels']).mean()
-    df = df.reset_index()
-    df = df.sort_values('bic', ascending=False)
-    df = df.groupby(['covar_type', 'covar_tied']).first()
-    df = df.reset_index()
-    return df
-
-
-def best_covar_type_tied_k(results_df):
-    """ Converts a Pandas DataFrame that is grouped and sorted by BIC to a list of tuples. """
-    covar_type_tied_k = list(zip(results_df['covar_type'], results_df['covar_tied'], results_df['k']))
-    return covar_type_tied_k
-
-
-def plot_aic_bic_fig(tasks):
-    sns.set(context='talk')
-    df = pd.DataFrame(tasks)
-    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
-    df['covar_type'] = [x.capitalize() for x in df['covar_type']]
-    df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
-    df['aic'] = df['aic'].astype('float')
-    df['bic'] = df['bic'].astype('float')
-    df = pd.melt(df, id_vars=['k', 'covar_type', 'covar_tied'], value_vars=['aic', 'bic'], var_name='metric')
-    f = sns.factorplot(x='k', y='value', col='covar_type', row='covar_tied', hue='metric', data=df,
-                       row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True)
-    f.set_titles("{col_name}-{row_name}")
-    return f.fig
-
-
-def plot_cluster_fig(data, columns, results_df):
-    """ Creates a 3x2 plot scatter plot using the first two columns """
-    sns.set(context='talk', style='white')
-    # df = tasks_to_df_grouped_by_bic_mean(tasks)
-    columns = columns[:2]
-
-    fig = plt.figure()
-    placement = {'full': {True: 1, False: 4}, 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
-    covar_type_tied_labels_k = zip(results_df['covar_type'], results_df['covar_tied'], results_df['labels'],
-                                   results_df['k'])
-    for covar_type, covar_tied, labels, k in covar_type_tied_labels_k:
-        plt.subplot(2, 3, placement[covar_type][covar_tied])
-        plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow, s=10)
-        plt.xlabel(columns[0])
-        plt.ylabel(columns[1])
-        plt.title('{}-{}, k={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
-    plt.tight_layout()
-    return fig
-
-
-def plot_spatial_cluster_fig(data, results_df):
-    """ Creates a 3x2 plot scatter plot using the first two columns """
-    sns.set(context='talk', style='white')
-    # df = tasks_to_df_grouped_by_bic_mean(tasks)
-#     columns = columns[:2]
-    data.columns = [c.lower() for c in data.columns]
-
-    fig = plt.figure()
-    placement = {'full': {True: 1, False: 4}, 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
-    covar_type_tied_labels_k = zip(results_df['covar_type'], results_df['covar_tied'], results_df['labels'],
-                                   results_df['k'])
-
-    for covar_type, covar_tied, labels, k in covar_type_tied_labels_k:
-        plt.subplot(2, 3, placement[covar_type][covar_tied])
-        plt.scatter(data['longitude'], data['latitude'], c=labels, cmap=plt.cm.rainbow, s=10)
-        plt.tick_params(axis='both', which='both', bottom='off', top='off', labelbottom='off', right='off', left='off', labelleft='off')
-        plt.xlabel('Longitude')
-        plt.ylabel('Latitude')
-        plt.title('{}-{}, k={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
-    plt.tight_layout()
-    return fig
-
-
-def spatial_columns_exist(data):
-    """ Returns True if one of each SPATIAL_COLUMNS exist in data (Pandas DataFrame). """
-    columns = [c.lower() for c in data.columns]
-    exist = [c in columns for c in SPATIAL_COLUMNS]
-    return sum(exist) == 2
-
-
-def fig_to_png_response(fig):
-    """ Converts a matplotlib figure to an http respose png. """
-    output = fig_to_png(fig)
-    response = make_response(output.getvalue())
-    response.mimetype = 'image/png'
-    return response
-
-
-def fig_to_png(fig):
-    """ Converts a matplotlib figure to a png (byte stream). """
-    canvas = FigureCanvas(fig)
-    output = io.BytesIO()
-    canvas.print_png(output)
-    return output
-
-
-def png_for_template(png):
-    """
-    Encodes a png (byte stream) so it can be passed to Jinja HTML template
-
-    Usage in HTML:  <img src="data:image/png;base64,{{output}}"/>
-    """
-    output = base64.b64encode(png.getvalue())
-    output = urllib.parse.quote(output)
-    return output
-
-
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-def upload_to_s3(filepath, filename, job_id):
-    s3_file_key = '{}/{}/{}'.format(UPLOAD_FOLDER, job_id, filename)
-    s3 = boto3.resource('s3')
-    s3.meta.client.upload_file(filepath, S3_BUCKET, s3_file_key)
-    return s3_file_key
-
-
-def s3_to_df(s3_file_key):
-    """ Downloads file from S3 and converts it to a Pandas DataFrame. """
-    s3 = boto3.client('s3')
-    file_name = '/tmp/data_file'
-    s3.download_file(S3_BUCKET, s3_file_key, file_name)
-    df = pd.read_csv(file_name)
-    os.remove(file_name)
-    return df
-
+                               spatial_cluster_plot=spatial_cluster_plot, viz_columns=viz_columns,
+                               start_time_date=start_time_date, start_time_clock=start_time_clock,
+                               task_0=tasks[0])
 
 @app.route('/submit', methods=['GET', 'POST'])
 def submit():
@@ -382,7 +186,7 @@ def submit():
             n_tasks = n_experiments * max_k * len(covars)
 
             # create one entry synchronously
-            create_task_on_dynamodb(job_id, 0, n_tasks, filename)
+            put_first_task_by_job_id(job_id, n_tasks, filename)
             print('created 1 task synchronously')
 
             # create all tasks asynchronously
@@ -402,23 +206,6 @@ def submit():
         return redirect(request.url)
 
 
-def create_task_on_dynamodb(job_id, task_id, n_tasks, filename):
-    id = generate_id(job_id, task_id)
-    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
-    table = dynamodb.Table(DYNAMO_TABLE)
-    item = dict(id=id, job_id=job_id, n_tasks=n_tasks, task_status='pending', filename=filename)
-    response = table.put_item(Item=item)
-    return response
-
-
-def generate_job_id():
-    min, max = 100, 1e9
-    id = random.randint(min, max)
-    while job_id_exists(id):
-        id = random.randint(min, max)
-    return id
-
-
 @app.route('/rerun/', methods=['GET', 'POST'])
 @app.route('/rerun/<job_id>/<task_id>', methods=['GET'])
 def rerun(job_id=None, task_id=None):
@@ -431,10 +218,7 @@ def rerun(job_id=None, task_id=None):
 
     id = generate_id(job_id, task_id)
 
-    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
-    table = dynamodb.Table(DYNAMO_TABLE)
-    response = table.get_item(Key={'id': id})
-    task = response['Item']
+    task = get_item_by_id(id)['Item']
 
     columns = task['columns']
     covar_tied = task['covar_tied']

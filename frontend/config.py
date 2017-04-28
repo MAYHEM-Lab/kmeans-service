@@ -1,6 +1,12 @@
 DYNAMO_URL = 'https://dynamodb.us-west-1.amazonaws.com'
 DYNAMO_TABLE = 'kmeansservice'
 DYNAMO_REGION = 'us-west-1'
+DYNAMO_RETRY_EXCEPTIONS = ('ProvisionedThroughputExceededException', 'ThrottlingException')
 S3_BUCKET = 'kmeansservice'
 SNS_TOPIC_ARN = 'arn:aws:sns:us-west-1:000169391513:kmeans-service'
 CELERY_BROKER = 'amqp://localhost//'
+UPLOAD_FOLDER = 'data'
+ALLOWED_EXTENSIONS = set(['csv'])
+EXCLUDE_COLUMNS = ['longitude', 'latitude']
+SPATIAL_COLUMNS = ['longitude', 'latitude']
+USE_LAMBDA = False

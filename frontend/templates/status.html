@@ -1,9 +1,11 @@
 {% extends "base.html" %}
+{% block title %}K-Means - Status - {{job_id}}{% endblock %}
 {% block body %}
   <h1>Status for Job ID: {{job_id}}</h1>
   <p class="text-muted">
-    Submited at {{start_time_clock}} on {{start_time_date}} (Pacific Time) <br>
-    File: "{{tasks[0].filename}}". Columns: "{{tasks[0].columns|join('", "')}}".
+    Submitted at {{start_time_clock}} on {{start_time_date}} (Pacific Time)
+    <br>File: "{{tasks[0].filename}}". Columns: "{{tasks[0].columns|join('", "')}}".
+    <!--<br>n_exp:{{tasks[0].n_experiments}}, max_k:{{tasks[0].max_k}}, n_init:{{tasks[0].n_init}}.-->
   </p>
   <!--<p>{{stats['n_tasks_submitted']}}/{{stats['n_tasks']}} jobs submitted and {{stats['n_tasks_done']}}/{{stats['n_tasks']}} [{{per_done}}%] done!</p>-->
   <p class="lead">Task completion progress:</p>
@@ -18,11 +20,11 @@
   <p class="text-muted">
     Total: {{stats['n_tasks']}},
     Submitted: {{stats['n_tasks_submitted']}} ({{stats['per_submitted']}}%),
-    Done: {{stats['n_tasks_done']}} ({{stats['per_done']}}%),
+    Pending: {{stats['n_tasks_pending']}} ({{stats['per_pending']}}%),
     Error: {{stats['n_tasks_error']}} ({{stats['per_error']}}%),
-    Pending: {{stats['n_tasks_pending']}} ({{stats['per_pending']}}%)
+    Done: {{stats['n_tasks_done']}} ({{stats['per_done']}}%).
   </p>
-  {% if n_tasks==n_tasks_done %}
+  {% if stats['n_tasks']==stats['n_tasks_done']%}
     <p><a class="btn btn-primary" href="{{url_for('report', job_id=job_id)}}" role="button">All Done! View report »</a></p>
   {% endif %}
   <h3>Details:</h3>
