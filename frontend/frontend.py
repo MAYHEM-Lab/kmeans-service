@@ -233,7 +233,7 @@ def rerun(job_id=None, task_id=None):
     task_id = int(task['task_id'])
     task_status = task['task_status']
 
-    submit_task(columns, covar_tied, covar_type, filename, job_id, k, n_init, n_tasks, s3_file_key, start_time,
+    submit_task.delay(columns, covar_tied, covar_type, filename, job_id, k, n_init, n_tasks, s3_file_key, start_time,
                       task_id, task_status)
 
     flash('Rerunning task "{}" for job ID "{}"'.format(task_id, job_id), category='info')

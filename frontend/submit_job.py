@@ -78,6 +78,38 @@ def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, filen
                     # time.sleep(0.5)
 
 
+# @app.task
+# def submit_job(n_init, n_experiments, max_k, covars, columns, s3_file_key, filename, job_id, n_tasks):
+#     if USE_LAMBDA:
+#         sns = boto3.client('sns')
+#     task_id = 0
+#     for _ in range(n_experiments):
+#         for k in range(1, max_k+1):
+#             for covar in covars:
+#                 start_time = str(time.time())
+#                 covar_type, covar_tied = covar.lower().split('-')
+#                 covar_tied = covar_tied == 'tied'
+#                 id = generate_id(job_id, task_id)
+#                 sns_payload = dict(id=id, k=k, covar_type=covar_type, covar_tied=covar_tied, n_init=n_init,
+#                                    s3_file_key=s3_file_key, columns=columns)
+#                 sns_message = json.dumps(sns_payload)
+#                 item = dict(id=id, job_id=job_id, task_id=task_id,
+#                             covar_type=covar_type, covar_tied=covar_tied, k=k, n_init=n_init, s3_file_key=s3_file_key,
+#                             columns=columns, task_status='pending', n_tasks=n_tasks, start_time=start_time,
+#                             filename=filename)
+#
+#                 # Create task entry in DynamoDB
+#                 put_item_by_item(item)
+#
+#                 # Submit task to the queue
+#                 if USE_LAMBDA:
+#                     sns_subject = 'web test'
+#                     sns_response = sns.publish(TopicArn=SNS_TOPIC_ARN, Message=sns_message, Subject=sns_subject)
+#                 else:
+#                     work_task.delay(sns_message)
+#                 task_id += 1
+#
+
 @app.task
 def submit_task(columns, covar_tied, covar_type, filename, job_id, k, n_init, n_tasks, s3_file_key, start_time, task_id,
                 task_status):
