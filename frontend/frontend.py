@@ -174,6 +174,8 @@ def report(job_id=None):
         s3_start_time = time.time()
         # s3_file_key = tasks[0]['s3_file_key']
         # viz_columns = tasks[0]['columns'][:2]  # Visualization done only for the first two columns
+        filename = job['filename']
+        columns = job['columns']
         s3_file_key = job['s3_file_key']
         viz_columns = job['columns'][:2]  # Visualization done only for the first two columns
         data = s3_to_df(s3_file_key)
@@ -193,7 +195,8 @@ def report(job_id=None):
         print('report: plot time elapsed: {:.2f}s'.format(time.time()-plots_start_time))
         print('report: report time elapsed: {:.2f}s'.format(time.time()-report_start_time))
 
-        return render_template('report.html', job_id=job_id, covar_type_tied_k=covar_type_tied_k,
+        return render_template('report.html', job_id=job_id, filename=filename, columns=columns,
+                               covar_type_tied_k=covar_type_tied_k,
                                cluster_plot=cluster_plot, aic_bic_plot=aic_bic_plot,
                                spatial_cluster_plot=spatial_cluster_plot, viz_columns=viz_columns,
                                start_time_date=start_time_date, start_time_clock=start_time_clock,
