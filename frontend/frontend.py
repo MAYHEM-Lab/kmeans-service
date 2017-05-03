@@ -22,6 +22,9 @@ S3             DynamoDB                             |
 
 Author: Angad Gill
 """
+import matplotlib
+matplotlib.use('Agg')  # needed to ensure that plotting works on a server with no display
+
 import os
 import time
 
@@ -102,6 +105,7 @@ def status(job_id=None):
 @app.route('/report/', methods=['GET', 'POST'])
 @app.route('/report/<job_id>')
 def report(job_id=None):
+    report_start_time = time.time()
     if request.method == 'POST':
         job_id = int(request.form.get('job_id'))
     elif request.method == 'GET' and job_id is None:
@@ -114,7 +118,9 @@ def report(job_id=None):
             flash('Job ID {} not found!'.format(job_id), category='danger')
             return render_template('index.html')
 
+        db_start_time = time.time()
         tasks = get_tasks_from_dynamodb(job_id)
+        print('report: db time elapsed: {:.2f}s'.format(time.time() - db_start_time))
 
         n_tasks = tasks[0]['n_tasks']
         n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
@@ -127,10 +133,13 @@ def report(job_id=None):
         results_df = tasks_to_best_results(tasks)
         covar_type_tied_k = best_covar_type_tied_k(results_df)
 
+        s3_start_time = time.time()
         s3_file_key = tasks[0]['s3_file_key']
         viz_columns = tasks[0]['columns'][:2]  # Visualization done only for the first two columns
         data = s3_to_df(s3_file_key)
+        print('report: s3 download and format time: {:.2f}s'.format(time.time()-s3_start_time))
 
+        plots_start_time = time.time()
         fig = plot_aic_bic_fig(tasks)
         aic_bic_plot = png_for_template(fig_to_png(fig))
 
@@ -141,12 +150,15 @@ def report(job_id=None):
         if spatial_columns_exist(data):
             fig = plot_spatial_cluster_fig(data, results_df)
             spatial_cluster_plot = png_for_template(fig_to_png(fig))
+        print('report: plot time elapsed: {:.2f}s'.format(time.time()-plots_start_time))
+        print('report: report time elapsed: {:.2f}s'.format(time.time()-report_start_time))
 
         return render_template('report.html', job_id=job_id, covar_type_tied_k=covar_type_tied_k,
                                cluster_plot=cluster_plot, aic_bic_plot=aic_bic_plot,
                                spatial_cluster_plot=spatial_cluster_plot, viz_columns=viz_columns,
                                start_time_date=start_time_date, start_time_clock=start_time_clock,
                                task_0=tasks[0])
+
 
 @app.route('/submit', methods=['GET', 'POST'])
 def submit():
