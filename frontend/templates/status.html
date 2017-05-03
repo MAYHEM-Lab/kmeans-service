@@ -49,8 +49,8 @@
           {% if task.covar_tied==True %}Tied{% endif %}
           {% if task.covar_tied==False %}Untied{% endif %}
         </td>
-        <td>{{'{:.2f}'.format(task.bic)}}</td>
-        <td>{{'{:.2f}'.format(task.aic)}}</td>
+        <td>{% if task.bic %}{{'{:.2f}'.format(task.bic)}}{%endif%}</td>
+        <td>{% if task.aic %}{{'{:.2f}'.format(task.aic)}}{%endif%}</td>
         <td {%if task.task_status=="error" %} class="table-danger" {%endif%}>
           {{task.task_status | capitalize}}
         </td>
