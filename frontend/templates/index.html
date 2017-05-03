@@ -85,7 +85,7 @@
         <p>Check the status of a previously submitted job here:</p>
         <form class="form-inline" method="get" name="status" action="{{url_for('status')}}">
           <!--<label class="mr-sm-2" for="job_id">Get job status</label>-->
-          <input type="number" class="form-control mb-2 mr-sm-2 mb-sm-0" id="job_id" name="job_id" placeholder="Job ID">
+          <input type="text" class="form-control mb-2 mr-sm-2 mb-sm-0" id="job_id" name="job_id" placeholder="Job ID">
           <button type="submit" class="btn btn-primary">Check</button>
         </form>
         <p></p>
@@ -96,7 +96,7 @@
         <h3>View Report</h3>
         <p>View the report for a previously submitted job here:</p>
         <form class="form-inline" method="get" name="status" action="{{url_for('report')}}">
-          <input type="number" class="form-control mb-2 mr-sm-2 mb-sm-0" id="job_id" name="job_id" placeholder="Job ID">
+          <input type="text" class="form-control mb-2 mr-sm-2 mb-sm-0" id="job_id" name="job_id" placeholder="Job ID">
           <button type="submit" class="btn btn-primary">View</button>
         </form>
         <p></p>

@@ -375,8 +375,13 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def generate_s3_file_key(job_id, filename):
+    return '{}/{}/{}'.format(UPLOAD_FOLDER, job_id, filename)
+
+
 def upload_to_s3(filepath, filename, job_id):
-    s3_file_key = '{}/{}/{}'.format(UPLOAD_FOLDER, job_id, filename)
+    # s3_file_key = '{}/{}/{}'.format(UPLOAD_FOLDER, job_id, filename)
+    s3_file_key = generate_s3_file_key(job_id, filename)
     s3 = boto3.resource('s3')
     s3.meta.client.upload_file(filepath, S3_BUCKET, s3_file_key)
     return s3_file_key

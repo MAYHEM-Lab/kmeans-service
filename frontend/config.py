@@ -10,3 +10,5 @@ ALLOWED_EXTENSIONS = set(['csv'])
 EXCLUDE_COLUMNS = ['longitude', 'latitude']
 SPATIAL_COLUMNS = ['longitude', 'latitude']
 USE_LAMBDA = False
+MONGO_DBNAME = 'kmeansservice'
+MONGO_URI = 'mongodb://localhost:27017/kmeansservice'

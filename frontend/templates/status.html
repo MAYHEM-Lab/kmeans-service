@@ -4,10 +4,8 @@
   <h1>Status for Job ID: {{job_id}}</h1>
   <p class="text-muted">
     Submitted at {{start_time_clock}} on {{start_time_date}} (Pacific Time)
-    <br>File: "{{tasks[0].filename}}". Columns: "{{tasks[0].columns|join('", "')}}".
-    <!--<br>n_exp:{{tasks[0].n_experiments}}, max_k:{{tasks[0].max_k}}, n_init:{{tasks[0].n_init}}.-->
+    <br>File: "{{filename}}". Columns: "{{columns|join('", "')}}".
   </p>
-  <!--<p>{{stats['n_tasks_submitted']}}/{{stats['n_tasks']}} jobs submitted and {{stats['n_tasks_done']}}/{{stats['n_tasks']}} [{{per_done}}%] done!</p>-->
   <p class="lead">Task completion progress:</p>
   <div class="progress">
     <div class="progress-bar bg-success" role="progressbar" style="width:{{stats['per_done']}}%"
@@ -51,8 +49,8 @@
           {% if task.covar_tied==True %}Tied{% endif %}
           {% if task.covar_tied==False %}Untied{% endif %}
         </td>
-        <td>{{task.bic}}</td>
-        <td>{{task.aic}}</td>
+        <td>{{'{:.2f}'.format(task.bic)}}</td>
+        <td>{{'{:.2f}'.format(task.aic)}}</td>
         <td {%if task.task_status=="error" %} class="table-danger" {%endif%}>
           {{task.task_status | capitalize}}
         </td>
