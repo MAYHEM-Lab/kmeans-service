@@ -312,16 +312,23 @@ def plot_spatial_cluster_fig(data, results_df):
 
     fig = plt.figure()
     placement = {'full': {True: 1, False: 4}, 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
-    covar_type_tied_labels_k = zip(results_df['covar_type'], results_df['covar_tied'], results_df['labels'],
-                                   results_df['k'])
 
-    for covar_type, covar_tied, labels, k in covar_type_tied_labels_k:
-        plt.subplot(2, 3, placement[covar_type][covar_tied])
-        plt.scatter(data['longitude'], data['latitude'], c=labels, cmap=plt.cm.rainbow, s=10)
-        plt.tick_params(axis='both', which='both', bottom='off', top='off', labelbottom='off', right='off', left='off', labelleft='off')
+    lim_left = data['longitude'].min()
+    lim_right = data['longitude'].max()
+    lim_bottom = data['latitude'].min()
+    lim_top = data['latitude'].max()
+
+    for row in results_df.itertuples():
+        plt.subplot(2, 3, placement[row.covar_type][row.covar_tied])
+        plt.scatter(data['longitude'], data['latitude'], c=row.labels, cmap=plt.cm.rainbow, s=10)
+        plt.xlim(left=lim_left, right=lim_right)
+        plt.ylim(bottom=lim_bottom, top=lim_top)
+        plt.xticks([])
+        plt.yticks([])
         plt.xlabel('Longitude')
         plt.ylabel('Latitude')
-        plt.title('{}-{}, k={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
+        plt.title('{}-{}, k={}'.format(row.covar_type.capitalize(), ['Untied', 'Tied'][row.covar_tied], row.k))
+
     plt.tight_layout()
     return fig
 
