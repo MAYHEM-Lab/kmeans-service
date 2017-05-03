@@ -270,6 +270,7 @@ def rerun(job_id=None, task_id=None):
         task_id = int(request.args.get('task_id'))
 
     # id = generate_id(job_id, task_id)
+    print('job_id: {}, task_id:{}'.format(job_id, task_id))
     rerun_task(job_id, task_id)
     #
     # task = get_item_by_id(id)['Item']

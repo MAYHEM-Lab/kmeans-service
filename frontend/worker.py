@@ -66,7 +66,7 @@ def rerun_task(job_id, task_id):
     k = task['k']
     covar_type = task['covar_type']
     covar_tied = task['covar_tied']
-    n_init = job['n_init']
+    n_init = task['n_init']
     s3_file_key = job['s3_file_key']
     columns = job['columns']
     work_task.delay(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, columns)
