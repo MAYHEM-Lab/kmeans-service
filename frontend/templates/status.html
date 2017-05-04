@@ -3,7 +3,7 @@
 {% block body %}
   <h1>Status for Job ID: {{job_id}}</h1>
   <p class="text-muted">
-    Submitted at {{start_time_clock}} on {{start_time_date}} (Pacific Time)
+    Submitted at {{start_time_clock}} on {{start_time_date}} (UTC)
     <br>File: "{{filename}}". Columns: "{{columns|join('", "')}}".
   </p>
   <p class="lead">Task completion progress:</p>
