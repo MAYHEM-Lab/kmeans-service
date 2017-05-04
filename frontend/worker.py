@@ -19,11 +19,8 @@ Author: Angad Gill
 import time
 from sf_kmeans import sf_kmeans
 from utils import s3_to_df, float_to_str
-from database import mongo_no_context_add_tasks
-from database import mongo_no_context_get_job
-from database import mongo_no_context_update_task_status
-from database import mongo_no_context_update_task
-from database import mongo_no_context_get_task
+from database import mongo_no_context_add_tasks, mongo_no_context_get_job, mongo_no_context_get_task
+from database import mongo_no_context_update_task_status, mongo_no_context_update_task
 from celery import Celery
 from config import CELERY_BROKER
 
@@ -81,7 +78,6 @@ def run_kmeans(data, n_clusters, covar_type, covar_tied, n_init):
                                  verbose=0)
     kmeans.fit(data)
     aic, bic = kmeans.aic(data), kmeans.bic(data)
-    # aic, bic = float_to_str(aic), float_to_str(bic)
     labels = [int(l) for l in kmeans.labels_]
     return aic, bic, labels
 

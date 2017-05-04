@@ -29,34 +29,21 @@ import os
 import time
 
 from flask import request, render_template, redirect, url_for, flash
-from werkzeug.utils import secure_filename
-
 from flask_app import app
+from werkzeug.utils import secure_filename
+import pandas as pd
 
-# from utils import get_item_by_id
-# from utils import job_id_exists
-# from utils import get_tasks_from_dynamodb
-# from utils import put_first_task_by_job_id
-# from utils import generate_job_id
-# from utils import generate_id
 from utils import format_date_time
-from utils import tasks_to_best_results, best_covar_type_tied_k
+from utils import tasks_to_best_results, best_covar_type_tied_k, task_stats
 from utils import plot_cluster_fig, plot_spatial_cluster_fig, plot_aic_bic_fig, png_for_template
 from utils import fig_to_png, spatial_columns_exist
 from utils import allowed_file, upload_to_s3, s3_to_df
 
-from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS, MONGO_DBNAME, MONGO_URI
-from database import add_job_to_mongo
-from database import mongo_job_id_exists
-from database import mongo_get_job
-from database import mongo_create_job
+from database import add_job_to_mongo, mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks
 from database import mongo_add_s3_file_key
-from database import mongo_get_tasks
-
-import pandas as pd
-
-# from submit_job import submit_job, submit_task
 from worker import create_tasks, rerun_task
+from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS
+
 
 """ Flask routes """
 
@@ -97,41 +84,16 @@ def status(job_id=None):
             return render_template('index.html')
 
         job = mongo_get_job(job_id)
-        # tasks = job.get('tasks', [])
         n_tasks = job['n_tasks']
         filename = job['filename']
         columns = job['columns']
 
         tasks = mongo_get_tasks(job_id)
-        # n_tasks = tasks[0]['n_tasks']
         stats = task_stats(n_tasks, tasks)
-        # start_time_date, start_time_clock = format_date_time(tasks[0]['start_time'])
         start_time_date, start_time_clock = format_date_time(job['start_time'])
 
         return render_template('status.html', job_id=job_id, stats=stats, tasks=tasks, filename=filename,
                                columns=columns, start_time_date=start_time_date, start_time_clock=start_time_clock)
-
-
-def task_stats(n_tasks, tasks):
-    n_tasks_submitted = len(tasks)
-    per_submitted = '{:.0f}'.format(n_tasks_submitted / n_tasks * 100)
-    n_tasks_done, n_tasks_pending, n_tasks_error = 0, 0, 0
-
-    if n_tasks_submitted > 0:
-        n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
-        n_tasks_pending = len([x for x in tasks if x['task_status'] == 'pending'])
-        n_tasks_error = len([x for x in tasks if x['task_status'] == 'error'])
-
-    per_done = '{:.0f}'.format(n_tasks_done / n_tasks * 100)
-    per_pending = '{:.0f}'.format(n_tasks_pending / n_tasks * 100)
-    per_error = '{:.0f}'.format(n_tasks_error / n_tasks * 100)
-
-    stats = dict(n_tasks=n_tasks,
-                 n_tasks_done=n_tasks_done, per_done=per_done,
-                 n_tasks_pending=n_tasks_pending, per_pending=per_pending,
-                 n_tasks_error=n_tasks_error, per_error=per_error,
-                 n_tasks_submitted=n_tasks_submitted, per_submitted=per_submitted)
-    return stats
 
 
 @app.route('/report/', methods=['GET', 'POST'])
@@ -151,32 +113,22 @@ def report(job_id=None):
             return render_template('index.html')
 
         db_start_time = time.time()
-        # tasks = get_tasks_from_dynamodb(job_id)
         job = mongo_get_job(job_id)
-        # tasks = job.get('tasks', [])
-
         n_tasks = job['n_tasks']
-
-        print('report: db time elapsed: {:.2f}s'.format(time.time() - db_start_time))
-
-        # n_tasks = tasks[0]['n_tasks']
-        # n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
         tasks = mongo_get_tasks(job_id)
         stats = task_stats(n_tasks, tasks)
         if n_tasks != stats['n_tasks_done']:
             print('got here')
             flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
             return redirect(url_for('status', job_id=job_id))
+        print('report: db time elapsed: {:.2f}s'.format(time.time() - db_start_time))
 
-        # start_time_date, start_time_clock = format_date_time(tasks[0]['start_time'])
         start_time_date, start_time_clock = format_date_time(job['start_time'])
 
         results_df = tasks_to_best_results(tasks)
         covar_type_tied_k = best_covar_type_tied_k(results_df)
 
         s3_start_time = time.time()
-        # s3_file_key = tasks[0]['s3_file_key']
-        # viz_columns = tasks[0]['columns'][:2]  # Visualization done only for the first two columns
         filename = job['filename']
         columns = job['columns']
         s3_file_key = job['s3_file_key']
@@ -272,27 +224,8 @@ def rerun(job_id=None, task_id=None):
         job_id = request.args.get('job_id')
         task_id = int(request.args.get('task_id'))
 
-    # id = generate_id(job_id, task_id)
     print('job_id: {}, task_id:{}'.format(job_id, task_id))
     rerun_task(job_id, task_id)
-    #
-    # task = get_item_by_id(id)['Item']
-    #
-    # columns = task['columns']
-    # covar_tied = task['covar_tied']
-    # covar_type = task['covar_type']
-    # filename = task['filename']
-    # job_id = int(task['job_id'])
-    # k = int(task['k'])
-    # n_init = int(task['n_init'])
-    # n_tasks = int(task['n_tasks'])
-    # s3_file_key = task['s3_file_key']
-    # start_time = str(time.time())
-    # task_id = int(task['task_id'])
-    # task_status = task['task_status']
-    #
-    # submit_task.delay(columns, covar_tied, covar_type, filename, job_id, k, n_init, n_tasks, s3_file_key, start_time,
-    #                   task_id, task_status)
 
     flash('Rerunning task "{}" for job ID "{}"'.format(task_id, job_id), category='info')
     return redirect(url_for('status', job_id=job_id))

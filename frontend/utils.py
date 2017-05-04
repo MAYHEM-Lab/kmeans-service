@@ -265,6 +265,28 @@ def best_covar_type_tied_k(results_df):
     return covar_type_tied_k
 
 
+def task_stats(n_tasks, tasks):
+    n_tasks_submitted = len(tasks)
+    per_submitted = '{:.0f}'.format(n_tasks_submitted / n_tasks * 100)
+    n_tasks_done, n_tasks_pending, n_tasks_error = 0, 0, 0
+
+    if n_tasks_submitted > 0:
+        n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
+        n_tasks_pending = len([x for x in tasks if x['task_status'] == 'pending'])
+        n_tasks_error = len([x for x in tasks if x['task_status'] == 'error'])
+
+    per_done = '{:.0f}'.format(n_tasks_done / n_tasks * 100)
+    per_pending = '{:.0f}'.format(n_tasks_pending / n_tasks * 100)
+    per_error = '{:.0f}'.format(n_tasks_error / n_tasks * 100)
+
+    stats = dict(n_tasks=n_tasks,
+                 n_tasks_done=n_tasks_done, per_done=per_done,
+                 n_tasks_pending=n_tasks_pending, per_pending=per_pending,
+                 n_tasks_error=n_tasks_error, per_error=per_error,
+                 n_tasks_submitted=n_tasks_submitted, per_submitted=per_submitted)
+    return stats
+
+
 """ Plotting functions  """
 
 
