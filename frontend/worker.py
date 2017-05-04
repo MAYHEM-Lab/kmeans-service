@@ -23,6 +23,7 @@ from database import mongo_no_context_add_tasks
 from database import mongo_no_context_get_job
 from database import mongo_no_context_update_task_status
 from database import mongo_no_context_update_task
+from database import mongo_no_context_get_task
 from celery import Celery
 from config import CELERY_BROKER
 
@@ -43,11 +44,12 @@ def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_
                 covar_type, covar_tied = covar.lower().split('-')
                 covar_tied = covar_tied == 'tied'
                 task = dict(task_id=task_id, covar_type=covar_type, covar_tied=covar_tied, k=k, n_init=n_init,
+                            job_id=job_id,
                             columns=columns, task_status=task_status)
                 tasks += [task]
                 task_id += 1
 
-    reponse = mongo_no_context_add_tasks(job_id, tasks)
+    reponse = mongo_no_context_add_tasks(tasks)
 
     # Start workers
     task_id = 0
@@ -62,7 +64,8 @@ def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_
 
 def rerun_task(job_id, task_id):
     job = mongo_no_context_get_job(job_id)
-    task = job['tasks'][task_id]
+    # task = job['tasks'][task_id]
+    task = mongo_no_context_get_task(job_id, task_id)
     k = task['k']
     covar_type = task['covar_type']
     covar_tied = task['covar_tied']

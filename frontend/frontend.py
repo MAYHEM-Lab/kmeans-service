@@ -51,6 +51,7 @@ from database import mongo_job_id_exists
 from database import mongo_get_job
 from database import mongo_create_job
 from database import mongo_add_s3_file_key
+from database import mongo_get_tasks
 
 import pandas as pd
 
@@ -96,11 +97,12 @@ def status(job_id=None):
             return render_template('index.html')
 
         job = mongo_get_job(job_id)
-        tasks = job.get('tasks', [])
+        # tasks = job.get('tasks', [])
         n_tasks = job['n_tasks']
         filename = job['filename']
         columns = job['columns']
 
+        tasks = mongo_get_tasks(job_id)
         # n_tasks = tasks[0]['n_tasks']
         stats = task_stats(n_tasks, tasks)
         # start_time_date, start_time_clock = format_date_time(tasks[0]['start_time'])
@@ -151,14 +153,15 @@ def report(job_id=None):
         db_start_time = time.time()
         # tasks = get_tasks_from_dynamodb(job_id)
         job = mongo_get_job(job_id)
-        tasks = job.get('tasks', [])
+        # tasks = job.get('tasks', [])
+
         n_tasks = job['n_tasks']
 
         print('report: db time elapsed: {:.2f}s'.format(time.time() - db_start_time))
 
         # n_tasks = tasks[0]['n_tasks']
         # n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
-
+        tasks = mongo_get_tasks(job_id)
         stats = task_stats(n_tasks, tasks)
         if n_tasks != stats['n_tasks_done']:
             print('got here')
