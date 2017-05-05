@@ -197,12 +197,20 @@ sudo /etc/init.d/nginx restart
 ```bash
 sudo cp /home/ubuntu/kmeans-service/frontend/frontend.conf /etc/init/frontend.conf
 ```
-10. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
+10. Generate a secret key for the Flask server:
+```bash
+python
+>>> import os
+>>> os.urandom(24)
+'\xcf6\x16\xac?\xdb\x0c\x1fb\x01p;\xa1\xf2/\x19\x8e\xcd\xfc\x07\xc9\xfd\x82\xf4'
 ```
+11. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
+```
+FLASK_SECRET_KEY = <secret key generted in 10.>
 CELERY_BROKER = 'amqp://kmeans:<password>@<RabbitMQ-IP>:5672//'
 MONGO_URI = 'mongodb://kmeans:<password@<MongoDB-IP>:27017/kmeansservice'
 ```
-11. Run the server:  
+12. Run the server:  
 ```bash
 sudo service frontend start
 ```
