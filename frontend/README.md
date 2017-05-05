@@ -116,7 +116,7 @@ sudo apt-get -y update && sudo apt-get -y upgrade
     At the prompt about `A new version of /boot/grub/menu.lst` select `keep the local version currently installed`.
 4. Install required packages: 
 ```bash
-sudo apt-get install -y python-virtualenv python3-tk
+sudo apt-get install -y python-virtualenv python3-tk git
 ```
 5. Clone the repo: 
 ```bash
@@ -164,7 +164,7 @@ sudo apt-get -y update && sudo apt-get -y upgrade
     At the prompt about `A new version of /boot/grub/menu.lst` select `keep the local version currently installed`.
 4. Install required Ubuntu packages: 
 ```bash
-sudo apt-get install -y nginx python-virtualenv python3-tk
+sudo apt-get install -y nginx python-virtualenv python3-tk git
 ```
 5. Clone this repo: 
 ```bash
