@@ -86,10 +86,16 @@
 <script>
   $(document).ready(function() {
     var table = $('#detailsTable').DataTable( {
-        stateSave: false,
-        "pageLength": 50,
-        lengthChange: false,
-        buttons: [ 'csv']
+      stateSave: false,
+      "pageLength": 50,
+      lengthChange: false,
+      buttons: [
+        {
+          extend:    'csvHtml5',
+          text:      '<i class="fa fa-download"></i>',
+          titleAttr: 'Download CSV'
+        }
+      ]
     } );
     table.buttons().container()
         .appendTo( '#detailsTable_wrapper .col-md-6:eq(0)' );
