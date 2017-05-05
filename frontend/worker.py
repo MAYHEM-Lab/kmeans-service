@@ -23,13 +23,14 @@ from database import mongo_no_context_add_tasks, mongo_no_context_get_job, mongo
 from database import mongo_no_context_update_task_status, mongo_no_context_update_task
 from celery import Celery
 from config import CELERY_BROKER
+from sklearn import preprocessing
 
 
 app = Celery('jobs', broker=CELERY_BROKER)
 
 
 @app.task
-def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_key, filename, n_tasks):
+def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_key, scale):
     task_status = 'pending'
 
     # Add tasks to DB
@@ -55,7 +56,7 @@ def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_
             for covar in covars:
                 covar_type, covar_tied = covar.lower().split('-')
                 covar_tied = covar_tied == 'tied'
-                work_task.delay(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, columns)
+                work_task.delay(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, columns, scale)
                 task_id += 1
 
 
@@ -69,7 +70,8 @@ def rerun_task(job_id, task_id):
     n_init = task['n_init']
     s3_file_key = job['s3_file_key']
     columns = job['columns']
-    work_task.delay(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, columns)
+    scale = job['scale']
+    work_task.delay(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, columns, scale)
     response = mongo_no_context_update_task_status(job_id, task_id, 'pending')
 
 
@@ -83,7 +85,7 @@ def run_kmeans(data, n_clusters, covar_type, covar_tied, n_init):
 
 
 @app.task
-def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, columns):
+def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, columns, scale):
     start_time = time.time()
     try:
         start_read_time = time.time()
@@ -92,6 +94,8 @@ def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, c
 
         start_processing_time = time.time()
         data = data.loc[:, columns]
+        if scale:
+            data = preprocessing.scale(data)
         aic, bic, labels = run_kmeans(data, k, covar_type, covar_tied, n_init)
         print('job_id:{}, bic:{}'.format(job_id, bic))
         elapsed_processing_time = time.time() - start_processing_time

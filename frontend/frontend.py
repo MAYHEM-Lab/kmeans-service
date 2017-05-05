@@ -48,12 +48,6 @@ from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS
 """ Flask routes """
 
 
-@app.route('/mongoadd/<job_id>')
-def mongoadd(job_id=None):
-    add_job_to_mongo(job_id)
-    return "done"
-
-
 @app.route('/', methods=['GET'])
 def index():
     return render_template('index.html')
@@ -87,12 +81,13 @@ def status(job_id=None):
         n_tasks = job['n_tasks']
         filename = job['filename']
         columns = job['columns']
+        scale = job.get('scale', False)
 
         tasks = mongo_get_tasks(job_id)
         stats = task_stats(n_tasks, tasks)
         start_time_date, start_time_clock = format_date_time(job['start_time'])
 
-        return render_template('status.html', job_id=job_id, stats=stats, tasks=tasks, filename=filename,
+        return render_template('status.html', job_id=job_id, stats=stats, tasks=tasks, filename=filename, scale=scale,
                                columns=columns, start_time_date=start_time_date, start_time_clock=start_time_clock)
 
 
@@ -132,6 +127,7 @@ def report(job_id=None):
         filename = job['filename']
         columns = job['columns']
         s3_file_key = job['s3_file_key']
+        scale = job.get('scale', False)
         viz_columns = job['columns'][:2]  # Visualization done only for the first two columns
         data = s3_to_df(s3_file_key)
         print('report: s3 download and format time: {:.2f}s'.format(time.time()-s3_start_time))
@@ -150,12 +146,11 @@ def report(job_id=None):
         print('report: plot time elapsed: {:.2f}s'.format(time.time()-plots_start_time))
         print('report: report time elapsed: {:.2f}s'.format(time.time()-report_start_time))
 
-        return render_template('report.html', job_id=job_id, filename=filename, columns=columns,
+        return render_template('report.html', job_id=job_id, filename=filename, columns=columns, scale=scale,
                                covar_type_tied_k=covar_type_tied_k,
                                cluster_plot=cluster_plot, aic_bic_plot=aic_bic_plot,
                                spatial_cluster_plot=spatial_cluster_plot, viz_columns=viz_columns,
-                               start_time_date=start_time_date, start_time_clock=start_time_clock,
-                               task_0=tasks[0])
+                               start_time_date=start_time_date, start_time_clock=start_time_clock)
 
 
 @app.route('/submit', methods=['GET', 'POST'])
@@ -187,18 +182,18 @@ def submit():
             n_experiments = int(request.form.get('n_experiments'))
             max_k = int(request.form.get('max_k'))
             covars = request.form.getlist('covars')
-
+            scale = 'scale' in request.form
             n_tasks = n_experiments * max_k * len(covars)
 
             # Create the job synchronously
-            job_id = mongo_create_job(n_experiments, max_k, columns, filename, n_tasks)
+            job_id = mongo_create_job(n_experiments, max_k, columns, filename, n_tasks, scale)
 
             s3_file_key = upload_to_s3(filepath, filename, job_id)
             response = mongo_add_s3_file_key(job_id, s3_file_key)
             os.remove(filepath)
 
             # Create all tasks asynchronously
-            create_tasks.delay(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_key, filename, n_tasks)
+            create_tasks.delay(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_key, scale)
             print('creating all tasks asynchronously')
             flash('Your request with job ID "{}" and {} tasks is being submitted. Refresh this page for updates.'.format(
                 job_id, n_tasks), 'success')

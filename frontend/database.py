@@ -59,10 +59,10 @@ def mongo_add_s3_file_key(job_id, s3_file_key):
     return response
 
 
-def mongo_create_job(n_experiments, max_k, columns, filename, n_tasks):
+def mongo_create_job(n_experiments, max_k, columns, filename, n_tasks, scale):
     key = dict(n_experiments=n_experiments, max_k=max_k, columns=columns, filename=filename,
                # tasks=[],
-               n_tasks=n_tasks, start_time=time.time(),)
+               n_tasks=n_tasks, start_time=time.time(), scale=scale)
     response = mongo.db.jobs.insert_one(key)
     job_id = str(response.inserted_id)
     return job_id
