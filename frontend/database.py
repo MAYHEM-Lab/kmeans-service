@@ -111,7 +111,7 @@ def mongo_update_task_status(job_id, task_id, status):
 def mongo_no_context_update_task_status(job_id, task_id, status):
     client = MongoClient(MONGO_URI)
     db = client[MONGO_DBNAME]
-    response = db.jobs.update_one(
+    response = db.tasks.update_one(
         {'job_id': job_id, 'task_id': task_id},
         {'$set': {'task_status': status}})
     return response
