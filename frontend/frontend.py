@@ -209,20 +209,23 @@ def submit():
         return redirect(request.url)
 
 
-@app.route('/rerun/', methods=['GET', 'POST'])
-@app.route('/rerun/<job_id>/<task_id>', methods=['GET'])
-def rerun(job_id=None, task_id=None):
-    if request.method == 'POST':
-        job_id = request.form.get('job_id')
-        task_id = int(request.form.get('task_id'))
-    elif request.method == 'GET' and job_id is None:
-        job_id = request.args.get('job_id')
-        task_id = int(request.args.get('task_id'))
+@app.route('/rerun/', methods=['POST'])
+def rerun():
+    # if request.method == 'POST':
+    #     job_id = request.form.get('job_id')
+    #     task_id = int(request.form.get('task_id'))
+    # elif request.method == 'GET' and job_id is None:
+    #     job_id = request.args.get('job_id')
+    #     task_id = int(request.args.get('task_id'))
+    job_id = request.form.get('job_id')
+    task_ids = request.form.get('task_ids')
+    task_ids = [int(i) for i in task_ids.split(',')]
+    n = len(task_ids)
+    print('job_id: {}, task_ids:{}'.format(job_id, task_ids))
+    for task_id in task_ids:
+        rerun_task.delay(job_id, task_id)
 
-    print('job_id: {}, task_id:{}'.format(job_id, task_id))
-    rerun_task(job_id, task_id)
-
-    flash('Rerunning task "{}" for job ID "{}"'.format(task_id, job_id), category='info')
+    flash('Rerunning {} tasks for job ID "{}"'.format(n, job_id), category='info')
     return redirect(url_for('status', job_id=job_id))
 
 

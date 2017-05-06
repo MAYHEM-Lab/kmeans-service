@@ -59,7 +59,7 @@ def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_
                 work_task.delay(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, columns, scale)
                 task_id += 1
 
-
+@app.task
 def rerun_task(job_id, task_id):
     job = mongo_no_context_get_job(job_id)
     # task = job['tasks'][task_id]
