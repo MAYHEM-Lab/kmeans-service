@@ -27,6 +27,7 @@ matplotlib.use('Agg')  # needed to ensure that plotting works on a server with n
 
 import os
 import time
+import sys
 
 from flask import request, render_template, redirect, url_for, flash
 from flask_app import app
@@ -111,29 +112,38 @@ def report(job_id=None):
         job = mongo_get_job(job_id)
         n_tasks = job['n_tasks']
         tasks = mongo_get_tasks(job_id)
-        stats = task_stats(n_tasks, tasks)
-        if n_tasks != stats['n_tasks_done']:
-            print('got here')
+        print('report: size of tasks object: {:,}'.format(sys.getsizeof(tasks)))
+        tasks_df = pd.DataFrame(tasks)
+        print('report: size of tasks_df object: {:,}'.format(sys.getsizeof(tasks_df)))
+        n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
+
+        if n_tasks != n_tasks_done:
             flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
             return redirect(url_for('status', job_id=job_id))
         print('report: db time elapsed: {:.2f}s'.format(time.time() - db_start_time))
 
         start_time_date, start_time_clock = format_date_time(job['start_time'])
 
-        results_df = tasks_to_best_results(tasks)
+        results_df = tasks_to_best_results(tasks_df)
+        print('report: size of results_df object: {:,}'.format(sys.getsizeof(results_df)))
         covar_type_tied_k = best_covar_type_tied_k(results_df)
+        print('report: size of covar_type_tied_k object: {:,}'.format(sys.getsizeof(covar_type_tied_k)))
 
         s3_start_time = time.time()
         filename = job['filename']
         columns = job['columns']
         s3_file_key = job['s3_file_key']
         scale = job.get('scale', False)
-        viz_columns = job['columns'][:2]  # Visualization done only for the first two columns
+
+        # Visualize the first two columns that are not on the exclude list
+        viz_columns= [c for c in job['columns'] if c.lower() not in EXCLUDE_COLUMNS][:2]
+        # viz_columns = job['columns'][:2]  # Visualization done only for the first two columns
+
         data = s3_to_df(s3_file_key)
         print('report: s3 download and format time: {:.2f}s'.format(time.time()-s3_start_time))
 
         plots_start_time = time.time()
-        fig = plot_aic_bic_fig(tasks)
+        fig = plot_aic_bic_fig(tasks_df)
         aic_bic_plot = png_for_template(fig_to_png(fig))
 
         fig = plot_cluster_fig(data, viz_columns, results_df)
@@ -176,7 +186,12 @@ def submit():
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
             df = pd.read_csv(filepath, nrows=1)
-            columns = [c for c in df.columns if c.lower() not in EXCLUDE_COLUMNS]
+
+            exclude_columns = 'exclude_columns' in request.form
+            if exclude_columns:
+                columns = [c for c in df.columns if c.lower() not in EXCLUDE_COLUMNS]
+            else:
+                columns = list(df.columns)
 
             n_init = int(request.form.get('n_init'))
             n_experiments = int(request.form.get('n_experiments'))

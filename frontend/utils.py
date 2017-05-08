@@ -27,7 +27,7 @@ from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS, SPATIAL_COLUMNS, DYNAMO_RE
 def format_date_time(start_time_str):
     """ Converts epoch time string to (Date, Time) formated as ('04 April 2017', '11:01 AM') """
     start_time = time.localtime(float(start_time_str))
-    start_time_date = time.strftime("%m %B %Y", start_time)
+    start_time_date = time.strftime("%d %B %Y", start_time)
     start_time_clock = time.strftime("%I:%M %p", start_time)
     return start_time_date, start_time_clock
 
@@ -228,13 +228,13 @@ def delete_items_by_job_id(job_id):
 """ Data wrangling functions """
 
 
-def tasks_to_best_results(tasks):
+def tasks_to_best_results(df):
     """
     Converts tasks data into a Pandas DataFrame containing best values for k, bic, and labels.
     Response DF contains 'k', 'covar_type', 'covar_tied', 'bic', 'labels'
 
     """
-    df = pd.DataFrame(tasks)
+    # df = pd.DataFrame(tasks)
 
     # Subset df to needed columns and fix types
     df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'labels']]
@@ -290,9 +290,9 @@ def task_stats(n_tasks, tasks):
 """ Plotting functions  """
 
 
-def plot_aic_bic_fig(tasks):
+def plot_aic_bic_fig(df):
     sns.set(context='talk')
-    df = pd.DataFrame(tasks)
+    # df = pd.DataFrame(tasks)
     df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
     df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
