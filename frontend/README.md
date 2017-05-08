@@ -79,9 +79,9 @@ sudo apt-get install -y mongodb-org
 ```bash
 mongo
 > use admin
-> db.createUser({ user: "admin", pwd: "<password>", roles:[{role: "userAdminAnyDatabase", db: "admin" }]})
+> db.createUser({ user: "admin", pwd: "<password>", roles:["root"]})
 > use kmeansservice
-> db.createUser({ user: "kmeans", pwd: "<password>", roles: [{ role: "dbOwner", db: "kmeansservice" }]})
+> db.createUser({ user: "kmeans", pwd: "<password>", roles: [{ role: "readWrite", db: "kmeansservice" }]})
 > exit
 ```
 6. Enable authorization:
