@@ -51,7 +51,7 @@ from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS
 
 @app.route('/', methods=['GET'])
 def index():
-    return render_template('index.html')
+    return render_template('index.html', exclude_columns=EXCLUDE_COLUMNS)
 
 
 @app.route('/status/', methods=['GET', 'POST'])
@@ -185,20 +185,22 @@ def submit():
 
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
-            df = pd.read_csv(filepath, nrows=1)
+            # df = pd.read_csv(filepath, nrows=1)
 
-            exclude_columns = 'exclude_columns' in request.form
-            if exclude_columns:
-                columns = [c for c in df.columns if c.lower() not in EXCLUDE_COLUMNS]
-            else:
-                columns = list(df.columns)
+            # exclude_columns = 'exclude_columns' in request.form
+            # if exclude_columns:
+            #     columns = [c for c in df.columns if c.lower() not in EXCLUDE_COLUMNS]
+            # else:
+            #     columns = list(df.columns)
 
             n_init = int(request.form.get('n_init'))
             n_experiments = int(request.form.get('n_experiments'))
             max_k = int(request.form.get('max_k'))
             covars = request.form.getlist('covars')
+            columns = request.form.getlist('columns')
             scale = 'scale' in request.form
             n_tasks = n_experiments * max_k * len(covars)
+            print(columns)
 
             # Create the job synchronously
             job_id = mongo_create_job(n_experiments, max_k, columns, filename, n_tasks, scale)

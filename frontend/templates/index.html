@@ -2,6 +2,9 @@
 
 {% extends "base.html" %}
 {% block title %}K-Means - Home{% endblock %}
+{% block head %}
+<script src="{{url_for('static', filename='js/papaparse.min.js')}}"></script>
+{% endblock %}
 {% block body %}
 
 <div class="jumbotron">
@@ -17,6 +20,7 @@
     <h3>New Analysis</h3>
     <p>Upload your data file here to start a new analysis:</p>
     <form method="post" enctype="multipart/form-data" action="{{url_for('submit')}}">
+    <!--<form method="post" enctype="multipart/form-data">-->
       <div class="form-group row">
         <label for="n_experiments" class="col-2 col-form-label">n_exp:</label>
         <div class="col-10">
@@ -73,29 +77,27 @@
         </div>
       </div>
       <div class="form-group row">
-        <label for="scale" class="col-sm-2">exclude:</label>
-        <div class="col-sm-10">
-          <div class="form-check">
-            <label class="form-check-label">
-              <input class="form-check-input" type="checkbox" id="exclude_columns" name="exclude_columns" checked>
-            </label>
-            <small class="form-text text-muted">
-            Exclude "Longitude" and "Latitude" columns when clustering the data.
-            These columns, if present, will still be used for spatial plots.
-            </small>
-          </div>
-        </div>
-      </div>
-      <div class="form-group row">
         <label for="file" class="col-2 col-form-label">file:</label>
         <div class="col-10">
-          <input type="file" class="form-control-file" id="file" name="file">
+          <input type="file" class="form-control-file" id="file" name="file" onchange="parseFile()">
           <small id="file_help" class="form-text text-muted">
-            Only '.csv' files smaller than 256MB in size are allowed.
+            Only ".csv" files smaller than 256MB in size are allowed.
             The files must have a header with column names.
           </small>
         </div>
       </div>
+      <div class="form-group row" >
+        <label for="columns" class="col-2 col-form-label">cols:</label>
+        <div class="col-10">
+          <select multiple class="form-control" id="columns" name="columns">
+          </select>
+          <small id="columns_help" class="form-text text-muted">
+            Columns from the file to be used for clustering.
+            "Longitude" and "Latitude" are excluded by default, but can be added above.
+          </small>
+        </div>
+      </div>
+
       <div class="form-group row">
         <label for="submit" class="col-2 col-form-label"></label>
         <div class="col-10">
@@ -144,7 +146,7 @@
 <div class="row" style="text-align:center">
   <div class="col-md-4">
     <p class="lead">Normal
-    <img src="{{url_for('static', filename='normal.png')}}" class="img-fluid float-left">
+    <img src="{{url_for('static', filename='images/normal.png')}}" class="img-fluid float-left">
     </p>
     <!--<p class="text-muted">Three clusters of normally distributed data.-->
     <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=0)}}" role="button">View Report »</a></p>
@@ -152,7 +154,7 @@
   </div>
   <div class="col-md-4">
     <p class="lead">Skewed 1
-    <img src="{{url_for('static', filename='skewed1.png')}}" class="img-fluid float-left">
+    <img src="{{url_for('static', filename='images/skewed1.png')}}" class="img-fluid float-left">
     </p>
     <!--<p class="text-muted">Three clusters of skewed data.-->
     <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=1)}}" role="button">View Report »</a></p>
@@ -160,7 +162,7 @@
   </div>
   <div class="col-md-4">
     <p class="lead">Skewed 2
-    <img src="{{url_for('static', filename='skewed2.png')}}" class="img-fluid float-left">
+    <img src="{{url_for('static', filename='images/skewed2.png')}}" class="img-fluid float-left">
     </p>
     <!--<p class="text-muted">Three clusters of skewed data.-->
     <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=2)}}" role="button">View Report »</a></p>
@@ -171,7 +173,7 @@
 <div class="row" style="text-align:center">
   <div class="col-md-4">
     <p class="lead">Skewed 3
-    <img src="{{url_for('static', filename='skewed3.png')}}" class="img-fluid float-left">
+    <img src="{{url_for('static', filename='images/skewed3.png')}}" class="img-fluid float-left">
     </p>
     <!--<p class="text-muted">Three clusters of skewed data.-->
     <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=3)}}" role="button">View Report »</a></p>
@@ -179,7 +181,7 @@
   </div>
   <div class="col-md-4">
     <p class="lead">Skewed 4
-    <img src="{{url_for('static', filename='skewed4.png')}}" class="img-fluid float-left">
+    <img src="{{url_for('static', filename='images/skewed4.png')}}" class="img-fluid float-left">
     </p>
     <!--<p class="text-muted">Three clusters of skewed data.-->
     <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=4)}}" role="button">View Report »</a></p>
@@ -187,7 +189,7 @@
   </div>
   <div class="col-md-4">
     <p class="lead">Skewed 5
-    <img src="{{url_for('static', filename='skewed5.png')}}" class="img-fluid float-left">
+    <img src="{{url_for('static', filename='images/skewed5.png')}}" class="img-fluid float-left">
     </p>
     <!--<p class="text-muted">Three clusters of skewed data.-->
     <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=5)}}" role="button">View Report »</a></p>
@@ -195,3 +197,58 @@
   </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script type="text/javascript">
+  // Code based on http://papaparse.com/demo
+    function parseFile() {
+        stepped = 0;
+        rowCount = 0;
+        errorCount = 0;
+        firstError = undefined;
+        var config = {
+            delimiter: ",",
+            skipEmptyLines: true,
+            preview: 5,
+            complete: completeFn,
+            error: errorFn
+        };
+        $('#file').parse({
+            config: config,
+            error: function(err, file) {
+                console.log("ERROR:", err, file.name);
+                firstError = firstError || err;
+                errorCount++;
+            }
+        });
+    }
+
+    function completeFn(results) {
+        var excludeColumns = {{exclude_columns|safe}};
+        if (results && results.errors) {
+            if (results.errors) {
+                errorCount = results.errors.length;
+                firstError = results.errors[0];
+            }
+            if (results.data && results.data.length > 0)
+                rowCount = results.data.length;
+        }
+        cols = results.data[0];
+        cols.forEach(function(c, i){
+            $('#columns').append("<option></option>");
+            $('#columns option')[i].text = c;
+            $('#columns option')[i].value = c;
+            if($.inArray(c.toLowerCase(), excludeColumns) >= 0){
+                $('#columns option')[i].selected = false;
+
+            } else {
+                $('#columns option')[i].selected = true;
+            }
+        });
+    }
+
+    function errorFn(err, file) {
+        console.log("ERROR:", err, file);
+    }
+</script>
+{% endblock%}
