@@ -146,8 +146,10 @@ def report(job_id=None):
         fig = plot_aic_bic_fig(tasks_df)
         aic_bic_plot = png_for_template(fig_to_png(fig))
 
-        fig = plot_cluster_fig(data, viz_columns, results_df)
-        cluster_plot = png_for_template(fig_to_png(fig))
+        cluster_plot = None
+        if viz_columns == 2:
+            fig = plot_cluster_fig(data, viz_columns, results_df)
+            cluster_plot = png_for_template(fig_to_png(fig))
 
         spatial_cluster_plot = None
         if spatial_columns_exist(data):
