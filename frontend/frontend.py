@@ -147,7 +147,7 @@ def report(job_id=None):
         aic_bic_plot = png_for_template(fig_to_png(fig))
 
         cluster_plot = None
-        if viz_columns == 2:
+        if len(viz_columns) == 2:
             fig = plot_cluster_fig(data, viz_columns, results_df)
             cluster_plot = png_for_template(fig_to_png(fig))
 
