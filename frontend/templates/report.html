@@ -23,13 +23,17 @@
         {% endfor %}
       </tbody>
     </table>
-  {% if cluster_plot %}
   <h3>Cluster Plots</h3>
+  {% if cluster_plot %}
   <p>
     Recommended cluster assignments are visualized below using the first two columns ({{viz_columns|join(', ')}}) in the
     dataset:
   </p>
   <img src="data:image/png;base64,{{cluster_plot}}" class="img-fluid"/>
+  {% else %}
+  <p>
+    Plot not avialable for columns ({{viz_columns|join(', ')}}).
+  </p>
   {% endif %}
 
   {% if spatial_cluster_plot %}
