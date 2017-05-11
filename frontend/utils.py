@@ -9,6 +9,7 @@ import random
 import time
 import base64
 import urllib.parse
+import sys
 
 import boto3
 from botocore.exceptions import ClientError
@@ -228,16 +229,29 @@ def delete_items_by_job_id(job_id):
 """ Data wrangling functions """
 
 
-def tasks_to_best_results(df):
+def filter_dict_list_by_keys(dict_list, keys):
+    new_dict_list = []
+    for d in dict_list:
+        new_d = {}
+        for k, v in d.items():
+            if k in keys:
+                new_d[k] = v
+        new_dict_list += [new_d]
+    return new_dict_list
+
+
+def tasks_to_best_results(tasks):
     """
     Converts tasks data into a Pandas DataFrame containing best values for k, bic, and labels.
     Response DF contains 'k', 'covar_type', 'covar_tied', 'bic', 'labels'
 
     """
-    # df = pd.DataFrame(tasks)
+    # Filter list of dicts to reduce the size of Pandas DataFrame
+    df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied', 'bic', '_id']))
+    print('tasks_to_best_results: size of df object: {:,}'.format(sys.getsizeof(df)))
 
     # Subset df to needed columns and fix types
-    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'labels']]
+    # df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'labels']]
     df['bic'] = df['bic'].astype('float')
     df['k'] = df['k'].astype('int')
 
@@ -248,15 +262,20 @@ def tasks_to_best_results(df):
 
     # Get labels from df that correspond to a bic closest to the best mean bic
     df = pd.merge(df, df_best_mean_bic, how='inner', on=['covar_type', 'covar_tied', 'k'], suffixes=('_x', '_y'))
-    df = df.assign(bic_diff = abs(df.bic_x - df.bic_y))
+    df = df.assign(bic_diff=abs(df.bic_x - df.bic_y))
     df = df.sort_values('bic_diff')
     df = df.groupby(['covar_type', 'covar_tied', 'k'], as_index=False).first()
+    labels = []
+    for row in df['_id']:
+        labels += [t['labels'] for t in tasks if t['_id'] == row]
+    # df['labels'] = labels
 
     # Clean up and return df
-    df = df.drop(['bic_x','bic_diff'], axis=1)
-    df.columns = ['covar_type', 'covar_tied', 'k', 'labels', 'bic']
+    # df = df.drop(['bic_x', 'bic_diff', '_id'], axis=1)
 
-    return df
+    # df.columns = ['covar_type', 'covar_tied', 'k', 'bic', 'labels']
+
+    return df['covar_type'].tolist(), df['covar_tied'].tolist(), df['k'].tolist(), labels
 
 
 def best_covar_type_tied_k(results_df):
@@ -290,10 +309,11 @@ def task_stats(n_tasks, tasks):
 """ Plotting functions  """
 
 
-def plot_aic_bic_fig(df):
+def plot_aic_bic_fig(tasks):
     sns.set(context='talk')
-    # df = pd.DataFrame(tasks)
-    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
+    # Filter list of dicts to reduce the size of Pandas DataFrame
+    df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']))
+    print('plot_aic_bic_fig: size of df object: {:,}'.format(sys.getsizeof(df)))
     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
     df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
     df['aic'] = df['aic'].astype('float')
@@ -305,7 +325,7 @@ def plot_aic_bic_fig(df):
     return f.fig
 
 
-def plot_cluster_fig(data, columns, results_df):
+def plot_cluster_fig(data, columns, covar_type_tied_labels_k):
     """ Creates a 3x2 plot scatter plot using the first two columns """
     sns.set(context='talk', style='white')
     # df = tasks_to_best_results(tasks)
@@ -313,8 +333,6 @@ def plot_cluster_fig(data, columns, results_df):
 
     fig = plt.figure()
     placement = {'full': {True: 1, False: 4}, 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
-    covar_type_tied_labels_k = zip(results_df['covar_type'], results_df['covar_tied'], results_df['labels'],
-                                   results_df['k'])
     for covar_type, covar_tied, labels, k in covar_type_tied_labels_k:
         plt.subplot(2, 3, placement[covar_type][covar_tied])
         plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow, s=10)
@@ -325,13 +343,26 @@ def plot_cluster_fig(data, columns, results_df):
     return fig
 
 
-def plot_spatial_cluster_fig(data, results_df):
-    """ Creates a 3x2 plot scatter plot using the first two columns """
-    sns.set(context='talk', style='white')
-    # df = tasks_to_best_results(tasks)
-#     columns = columns[:2]
-    data.columns = [c.lower() for c in data.columns]
+# def plot_count_fig(tasks):
+#     """ Creates a 3x2 plot of the number (count) of data points for each k in each covar. """
+#     sns.set(context='talk')
+#     df = pd.DataFrame(tasks)
+#     df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
+#     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
+#     df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
+#     df['aic'] = df['aic'].astype('float')
+#     df['bic'] = df['bic'].astype('float')
+#     f = sns.factorplot(x='k', kind='count', col='covar_type', row='covar_tied', data=df,
+#                       row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True,
+#                       palette='Blues_d')
+#     f.set_titles("{col_name}-{row_name}")
+#     return f.fig
 
+
+def plot_spatial_cluster_fig(data, covar_type_tied_labels_k):
+    """ Creates a 3x2 plot spatial plot using labels as the color """
+    sns.set(context='talk', style='white')
+    data.columns = [c.lower() for c in data.columns]
     fig = plt.figure()
     placement = {'full': {True: 1, False: 4}, 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
 
@@ -339,18 +370,16 @@ def plot_spatial_cluster_fig(data, results_df):
     lim_right = data['longitude'].max()
     lim_bottom = data['latitude'].min()
     lim_top = data['latitude'].max()
-
-    for row in results_df.itertuples():
-        plt.subplot(2, 3, placement[row.covar_type][row.covar_tied])
-        plt.scatter(data['longitude'], data['latitude'], c=row.labels, cmap=plt.cm.rainbow, s=10)
+    for covar_type, covar_tied, labels, k in covar_type_tied_labels_k:
+        plt.subplot(2, 3, placement[covar_type][covar_tied])
+        plt.scatter(data['longitude'], data['latitude'], c=labels, cmap=plt.cm.rainbow, s=10)
         plt.xlim(left=lim_left, right=lim_right)
         plt.ylim(bottom=lim_bottom, top=lim_top)
         plt.xticks([])
         plt.yticks([])
         plt.xlabel('Longitude')
         plt.ylabel('Latitude')
-        plt.title('{}-{}, k={}'.format(row.covar_type.capitalize(), ['Untied', 'Tied'][row.covar_tied], row.k))
-
+        plt.title('{}-{}, k={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
     plt.tight_layout()
     return fig
 

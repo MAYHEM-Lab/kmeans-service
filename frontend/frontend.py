@@ -45,6 +45,8 @@ from database import mongo_add_s3_file_key
 from worker import create_tasks, rerun_task
 from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS
 
+import json
+
 
 """ Flask routes """
 
@@ -113,8 +115,6 @@ def report(job_id=None):
         n_tasks = job['n_tasks']
         tasks = mongo_get_tasks(job_id)
         print('report: size of tasks object: {:,}'.format(sys.getsizeof(tasks)))
-        tasks_df = pd.DataFrame(tasks)
-        print('report: size of tasks_df object: {:,}'.format(sys.getsizeof(tasks_df)))
         n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
 
         if n_tasks != n_tasks_done:
@@ -124,10 +124,9 @@ def report(job_id=None):
 
         start_time_date, start_time_clock = format_date_time(job['start_time'])
 
-        results_df = tasks_to_best_results(tasks_df)
-        print('report: size of results_df object: {:,}'.format(sys.getsizeof(results_df)))
-        covar_type_tied_k = best_covar_type_tied_k(results_df)
-        print('report: size of covar_type_tied_k object: {:,}'.format(sys.getsizeof(covar_type_tied_k)))
+        data_wrangling_time = time.time()
+        covar_types, covar_tieds, ks, labels = tasks_to_best_results(tasks)
+        print('report: data wrangling time elapsed: {:.2f}s'.format(time.time() - data_wrangling_time))
 
         s3_start_time = time.time()
         filename = job['filename']
@@ -137,29 +136,28 @@ def report(job_id=None):
 
         # Visualize the first two columns that are not on the exclude list
         viz_columns= [c for c in job['columns'] if c.lower() not in EXCLUDE_COLUMNS][:2]
-        # viz_columns = job['columns'][:2]  # Visualization done only for the first two columns
 
         data = s3_to_df(s3_file_key)
         print('report: s3 download and format time: {:.2f}s'.format(time.time()-s3_start_time))
 
         plots_start_time = time.time()
-        fig = plot_aic_bic_fig(tasks_df)
+        fig = plot_aic_bic_fig(tasks)
         aic_bic_plot = png_for_template(fig_to_png(fig))
 
         cluster_plot = None
         if len(viz_columns) == 2:
-            fig = plot_cluster_fig(data, viz_columns, results_df)
+            fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks))
             cluster_plot = png_for_template(fig_to_png(fig))
 
         spatial_cluster_plot = None
         if spatial_columns_exist(data):
-            fig = plot_spatial_cluster_fig(data, results_df)
+            fig = plot_spatial_cluster_fig(data, zip(covar_types, covar_tieds, labels, ks))
             spatial_cluster_plot = png_for_template(fig_to_png(fig))
         print('report: plot time elapsed: {:.2f}s'.format(time.time()-plots_start_time))
         print('report: report time elapsed: {:.2f}s'.format(time.time()-report_start_time))
 
         return render_template('report.html', job_id=job_id, filename=filename, columns=columns, scale=scale,
-                               covar_type_tied_k=covar_type_tied_k,
+                               covar_type_tied_k=zip(covar_types, covar_tieds, ks),
                                cluster_plot=cluster_plot, aic_bic_plot=aic_bic_plot,
                                spatial_cluster_plot=spatial_cluster_plot, viz_columns=viz_columns,
                                start_time_date=start_time_date, start_time_clock=start_time_clock)
