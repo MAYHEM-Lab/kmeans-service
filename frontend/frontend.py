@@ -29,7 +29,7 @@ import os
 import time
 import sys
 
-from flask import request, render_template, redirect, url_for, flash
+from flask import request, render_template, redirect, url_for, flash, send_file, make_response
 from flask_app import app
 from werkzeug.utils import secure_filename
 import pandas as pd
@@ -43,7 +43,7 @@ from utils import allowed_file, upload_to_s3, s3_to_df
 from database import add_job_to_mongo, mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks
 from database import mongo_add_s3_file_key
 from worker import create_tasks, rerun_task
-from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS
+from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS, SPATIAL_COLUMNS
 
 import json
 
@@ -97,7 +97,6 @@ def status(job_id=None):
 @app.route('/report/', methods=['GET', 'POST'])
 @app.route('/report/<job_id>')
 def report(job_id=None):
-    report_start_time = time.time()
     if request.method == 'POST':
         job_id = request.form.get('job_id')
         x_axis = request.form.get('x_axis')
@@ -109,73 +108,91 @@ def report(job_id=None):
     if job_id is None:
         flash('Job ID invalid!'.format(job_id), category='danger')
         return render_template('index.html')
+    if not mongo_job_id_exists(job_id):
+        flash('Job ID {} not found!'.format(job_id), category='danger')
+        return render_template('index.html')
+
+    job = mongo_get_job(job_id)
+    n_tasks = job['n_tasks']
+    tasks = mongo_get_tasks(job_id)
+    n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
+
+    if n_tasks != n_tasks_done:
+        flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
+        return redirect(url_for('status', job_id=job_id))
+
+    start_time_date, start_time_clock = format_date_time(job['start_time'])
+
+    covar_types, covar_tieds, ks, labels = tasks_to_best_results(tasks)
+
+    filename = job['filename']
+    cluster_columns = job['columns']
+    s3_file_key = job['s3_file_key']
+    scale = job.get('scale', False)
+
+    if x_axis is None or y_axis is None:
+        # Visualize the first two columns that are not on the exclude list
+        viz_columns = [c for c in job['columns'] if c.lower() not in EXCLUDE_COLUMNS][:2]
     else:
-        if not mongo_job_id_exists(job_id):
-            flash('Job ID {} not found!'.format(job_id), category='danger')
-            return render_template('index.html')
+        viz_columns = [x_axis, y_axis]
 
-        db_start_time = time.time()
-        job = mongo_get_job(job_id)
-        n_tasks = job['n_tasks']
-        tasks = mongo_get_tasks(job_id)
-        print('report: size of tasks object: {:,}'.format(sys.getsizeof(tasks)))
-        n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
+    data = s3_to_df(s3_file_key)
+    columns = list(data.columns)
+    spatial_columns = [c for c in columns if c.lower() in SPATIAL_COLUMNS][:2]
 
-        if n_tasks != n_tasks_done:
-            flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
-            return redirect(url_for('status', job_id=job_id))
-        print('report: db time elapsed: {:.2f}s'.format(time.time() - db_start_time))
+    return render_template('report.html', job_id=job_id, filename=filename, scale=scale,
+                           covar_type_tied_k=zip(covar_types, covar_tieds, ks),
+                           columns=columns, cluster_columns=cluster_columns,
+                           viz_columns=viz_columns, spatial_columns=spatial_columns,
+                           start_time_date=start_time_date, start_time_clock=start_time_clock)
 
-        start_time_date, start_time_clock = format_date_time(job['start_time'])
 
-        data_wrangling_time = time.time()
-        covar_types, covar_tieds, ks, labels = tasks_to_best_results(tasks)
-        print('report: data wrangling time elapsed: {:.2f}s'.format(time.time() - data_wrangling_time))
+@app.route('/plot/aic_bic/<job_id>')
+@app.route('/plot/aic_bic/<job_id>/')
+def plot_aic_bic(job_id=None):
+    if job_id is None:
+        return None
+    job = mongo_get_job(job_id)
+    n_tasks = job['n_tasks']
+    tasks = mongo_get_tasks(job_id)
+    n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
+    if n_tasks != n_tasks_done:
+        return None
+    fig = plot_aic_bic_fig(tasks)
+    aic_bic_plot = fig_to_png(fig)
+    response = make_response(aic_bic_plot.getvalue())
+    response.mimetype = 'image/png'
+    return response
 
-        s3_start_time = time.time()
-        filename = job['filename']
-        columns = job['columns']
-        s3_file_key = job['s3_file_key']
-        scale = job.get('scale', False)
 
-        print('report: x_axis:{}, y_axis:{}'.format(x_axis, y_axis))
-        if x_axis is None or y_axis is None:
-            # Visualize the first two columns that are not on the exclude list
-            viz_columns = [c for c in job['columns'] if c.lower() not in EXCLUDE_COLUMNS][:2]
-        else:
-            viz_columns = [x_axis, y_axis]
-        print('report: viz columns: {}'.format(viz_columns  ))
+@app.route('/plot/cluster')
+@app.route('/plot/cluster/')
+def plot_cluster():
+    job_id = request.args.get('job_id')
+    x_axis = request.args.get('x_axis')
+    y_axis = request.args.get('y_axis')
+    show_ticks = request.args.get('show_ticks', 'True') == 'True'
+    if job_id is None or x_axis is None or y_axis is None:
+        return None
 
-        data = s3_to_df(s3_file_key)
-        print('report: s3 download and format time: {:.2f}s'.format(time.time()-s3_start_time))
+    job = mongo_get_job(job_id)
+    n_tasks = job['n_tasks']
+    tasks = mongo_get_tasks(job_id)
+    n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
 
-        plots_start_time = time.time()
-        aic_bic_plot_start_time = time.time()
-        fig = plot_aic_bic_fig(tasks)
-        aic_bic_plot = png_for_template(fig_to_png(fig))
-        print('report: aic bic plot time: {:.2f}s'.format(time.time()-aic_bic_plot_start_time))
+    if n_tasks != n_tasks_done:
+        flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
+        return redirect(url_for('status', job_id=job_id))
 
-        cluster_plot_start_time = time.time()
-        cluster_plot = None
-        if len(viz_columns) == 2:
-            fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks))
-            cluster_plot = png_for_template(fig_to_png(fig))
-        print('report: cluster plot time: {:.2f}s'.format(time.time()-cluster_plot_start_time))
-
-        spatial_plot_start_time = time.time()
-        spatial_cluster_plot = None
-        if spatial_columns_exist(data):
-            fig = plot_spatial_cluster_fig(data, zip(covar_types, covar_tieds, labels, ks))
-            spatial_cluster_plot = png_for_template(fig_to_png(fig))
-        print('report: spatial plot time: {:.2f}s'.format(time.time()-spatial_plot_start_time))
-        print('report: plot time elapsed: {:.2f}s'.format(time.time()-plots_start_time))
-        print('report: report time elapsed: {:.2f}s'.format(time.time()-report_start_time))
-
-        return render_template('report.html', job_id=job_id, filename=filename, columns=columns, scale=scale,
-                               covar_type_tied_k=zip(covar_types, covar_tieds, ks),
-                               cluster_plot=cluster_plot, aic_bic_plot=aic_bic_plot,
-                               spatial_cluster_plot=spatial_cluster_plot, viz_columns=viz_columns,
-                               start_time_date=start_time_date, start_time_clock=start_time_clock)
+    covar_types, covar_tieds, ks, labels = tasks_to_best_results(tasks)
+    s3_file_key = job['s3_file_key']
+    viz_columns = [x_axis, y_axis]
+    data = s3_to_df(s3_file_key)
+    fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks), show_ticks)
+    cluster_plot = fig_to_png(fig)
+    response = make_response(cluster_plot.getvalue())
+    response.mimetype = 'image/png'
+    return response
 
 
 @app.route('/submit', methods=['GET', 'POST'])
@@ -215,7 +232,6 @@ def submit():
             columns = request.form.getlist('columns')
             scale = 'scale' in request.form
             n_tasks = n_experiments * max_k * len(covars)
-            print(columns)
 
             # Create the job synchronously
             job_id = mongo_create_job(n_experiments, max_k, columns, filename, n_tasks, scale)

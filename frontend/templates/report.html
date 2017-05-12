@@ -4,7 +4,9 @@
   <h1>Report for Job ID: {{job_id}}</h1>
   <p class="text-muted">
     Submitted at {{start_time_clock}} on {{start_time_date}} (UTC)
-    <br> File: "{{filename}}". Columns: "{{columns|join('", "')}}". Scale: "{{scale}}".
+    <br> File: "{{filename}}".
+    <br>Clustered using: [{{cluster_columns|join(', ')}}].
+    <br>Scale: "{{scale}}".
   </p>
   <p class="lead">Recommended number of clusters based on the best (highest) BIC score:</p>
     <table class="table table-hover">
@@ -24,17 +26,11 @@
       </tbody>
     </table>
   <h3>Cluster Plots</h3>
-  {% if cluster_plot %}
   <p>
-    Recommended cluster assignments are visualized below using the first two columns ({{viz_columns|join(', ')}}) in the
-    dataset:
+    Recommended cluster assignments are visualized below using the columns {{viz_columns[0]}} and {{viz_columns[1]}}:
   </p>
-  <img src="data:image/png;base64,{{cluster_plot}}" class="img-fluid"/>
-  {% else %}
-  <p>
-    Plot not avialable for columns ({{viz_columns|join(', ')}}).
-  </p>
-  {% endif %}
+  <img src="{{url_for('plot_cluster', job_id=job_id, x_axis=viz_columns[0], y_axis=viz_columns[1])}}" class="img-fluid"/>
+
   <div class="form-group row">
     <form class="form-inline" method="post" enctype="multipart/form-data" action="{{url_for('report')}}">
       <input type="text" id="job_id" name="job_id" placeholder="Job ID" value="{{job_id}}" hidden>
@@ -47,7 +43,6 @@
           <option value="{{column}}" {%if column==viz_columns[0] %} selected {% endif %}>{{column}}</option>
           {% endfor %}
         </select>
-        <!--<small id="x_axis_help" class="form-text text-muted">Select column for the x-axis..</small>-->
       </div>
       <div class="col-2">
         <label for="y_axis" class="col-form-label">y-axis:</label>
@@ -58,28 +53,26 @@
           <option value="{{column}}" {%if column==viz_columns[1] %} selected {% endif %}>{{column}}</option>
           {% endfor %}
         </select>
-        <!--<small id="y_axis_help" class="form-text text-muted">Select column for the y-axis.</small>-->
       </div>
       <div class="col-2">
         <button id="submit" type="submit" class="btn btn-primary">Reload</button>
       </div>
     </form>
   </div>
-  {% if spatial_cluster_plot %}
   <h3>Spatial Cluster Plots</h3>
+  {% if (spatial_columns|length) == 2 %}
   <p>
     Recommended cluster assignments are visualized below using the Latitude and Longitude columns in the data:
   </p>
-  <img src="data:image/png;base64,{{spatial_cluster_plot}}" class="img-fluid"/>
+  <img src="{{url_for('plot_cluster', job_id=job_id, x_axis=spatial_columns[0], y_axis=spatial_columns[1], show_ticks=False)}}" class="img-fluid"/>
+  {% else %}
+  <p> Not available.</p>
   {% endif %}
-
-  {% if aic_bic_plot %}
   <h3>AIC and BIC Plots</h3>
   <p>
     Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC) for all covariance and "k" values,
     shown with 95% confidence intervals.
   </p>
-  <img src="data:image/png;base64,{{aic_bic_plot}}" class="img-fluid"/>
-  {% endif %}
+  <img src="{{url_for('plot_aic_bic', job_id=job_id)}}" class="img-fluid"/>
 
 {% endblock %}

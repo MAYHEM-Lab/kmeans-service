@@ -248,7 +248,7 @@ def tasks_to_best_results(tasks):
     """
     # Filter list of dicts to reduce the size of Pandas DataFrame
     df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied', 'bic', '_id']))
-    print('tasks_to_best_results: size of df object: {:,}'.format(sys.getsizeof(df)))
+    # print('tasks_to_best_results: size of df object: {:,}'.format(sys.getsizeof(df)))
 
     # Subset df to needed columns and fix types
     # df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'labels']]
@@ -313,7 +313,7 @@ def plot_aic_bic_fig(tasks):
     sns.set(context='talk')
     # Filter list of dicts to reduce the size of Pandas DataFrame
     df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']))
-    print('plot_aic_bic_fig: size of df object: {:,}'.format(sys.getsizeof(df)))
+    # print('plot_aic_bic_fig: size of df object: {:,}'.format(sys.getsizeof(df)))
     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
     df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
     df['aic'] = df['aic'].astype('float')
@@ -326,7 +326,7 @@ def plot_aic_bic_fig(tasks):
     return f.fig
 
 
-def plot_cluster_fig(data, columns, covar_type_tied_labels_k):
+def plot_cluster_fig(data, columns, covar_type_tied_labels_k, show_ticks=True):
     """ Creates a 3x2 plot scatter plot using the first two columns """
     sns.set(context='talk', style='white')
     # df = tasks_to_best_results(tasks)
@@ -334,11 +334,22 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k):
 
     fig = plt.figure()
     placement = {'full': {True: 1, False: 4}, 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
+
+    lim_left = data[columns[0]].min()
+    lim_right = data[columns[0]].max()
+    lim_bottom = data[columns[1]].min()
+    lim_top = data[columns[1]].max()
+
     for covar_type, covar_tied, labels, k in covar_type_tied_labels_k:
         plt.subplot(2, 3, placement[covar_type][covar_tied])
         plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow, s=10)
         plt.xlabel(columns[0])
         plt.ylabel(columns[1])
+        plt.xlim(left=lim_left, right=lim_right)
+        plt.ylim(bottom=lim_bottom, top=lim_top)
+        if show_ticks is False:
+            plt.xticks([])
+            plt.yticks([])
         plt.title('{}-{}, k={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
     plt.tight_layout()
     return fig
