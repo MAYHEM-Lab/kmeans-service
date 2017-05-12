@@ -320,7 +320,8 @@ def plot_aic_bic_fig(tasks):
     df['bic'] = df['bic'].astype('float')
     df = pd.melt(df, id_vars=['k', 'covar_type', 'covar_tied'], value_vars=['aic', 'bic'], var_name='metric')
     f = sns.factorplot(x='k', y='value', col='covar_type', row='covar_tied', hue='metric', data=df,
-                       row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True)
+                       row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True,
+                       n_boot=100)
     f.set_titles("{col_name}-{row_name}")
     return f.fig
 

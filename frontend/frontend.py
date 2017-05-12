@@ -141,18 +141,24 @@ def report(job_id=None):
         print('report: s3 download and format time: {:.2f}s'.format(time.time()-s3_start_time))
 
         plots_start_time = time.time()
+        aic_bic_plot_start_time = time.time()
         fig = plot_aic_bic_fig(tasks)
         aic_bic_plot = png_for_template(fig_to_png(fig))
+        print('report: aic bic plot time: {:.2f}s'.format(time.time()-aic_bic_plot_start_time))
 
+        cluster_plot_start_time = time.time()
         cluster_plot = None
         if len(viz_columns) == 2:
             fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks))
             cluster_plot = png_for_template(fig_to_png(fig))
+        print('report: cluster plot time: {:.2f}s'.format(time.time()-cluster_plot_start_time))
 
+        spatial_plot_start_time = time.time()
         spatial_cluster_plot = None
         if spatial_columns_exist(data):
             fig = plot_spatial_cluster_fig(data, zip(covar_types, covar_tieds, labels, ks))
             spatial_cluster_plot = png_for_template(fig_to_png(fig))
+        print('report: spatial plot time: {:.2f}s'.format(time.time()-spatial_plot_start_time))
         print('report: plot time elapsed: {:.2f}s'.format(time.time()-plots_start_time))
         print('report: report time elapsed: {:.2f}s'.format(time.time()-report_start_time))
 
