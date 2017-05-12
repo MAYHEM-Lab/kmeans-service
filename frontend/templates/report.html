@@ -35,7 +35,36 @@
     Plot not avialable for columns ({{viz_columns|join(', ')}}).
   </p>
   {% endif %}
-
+  <div class="form-group row">
+    <form class="form-inline" method="post" enctype="multipart/form-data" action="{{url_for('report')}}">
+      <input type="text" id="job_id" name="job_id" placeholder="Job ID" value="{{job_id}}" hidden>
+      <div class="col-2">
+        <label for="x_axis" class="col-form-label">x-axis:</label>
+      </div>
+      <div class="col-3">
+        <select class="form-control" id="x_axis" name="x_axis">
+          {% for column in columns %}
+          <option value="{{column}}" {%if column==viz_columns[0] %} selected {% endif %}>{{column}}</option>
+          {% endfor %}
+        </select>
+        <!--<small id="x_axis_help" class="form-text text-muted">Select column for the x-axis..</small>-->
+      </div>
+      <div class="col-2">
+        <label for="y_axis" class="col-form-label">y-axis:</label>
+      </div>
+      <div class="col-3">
+        <select class="form-control" id="y_axis" name="y_axis">
+          {% for column in columns %}
+          <option value="{{column}}" {%if column==viz_columns[1] %} selected {% endif %}>{{column}}</option>
+          {% endfor %}
+        </select>
+        <!--<small id="y_axis_help" class="form-text text-muted">Select column for the y-axis.</small>-->
+      </div>
+      <div class="col-2">
+        <button id="submit" type="submit" class="btn btn-primary">Reload</button>
+      </div>
+    </form>
+  </div>
   {% if spatial_cluster_plot %}
   <h3>Spatial Cluster Plots</h3>
   <p>

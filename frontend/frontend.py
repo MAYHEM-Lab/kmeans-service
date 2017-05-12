@@ -100,8 +100,12 @@ def report(job_id=None):
     report_start_time = time.time()
     if request.method == 'POST':
         job_id = request.form.get('job_id')
-    elif request.method == 'GET' and job_id is None:
-        job_id = request.args.get('job_id')
+        x_axis = request.form.get('x_axis')
+        y_axis = request.form.get('y_axis')
+    elif request.method == 'GET':
+        if job_id is None:
+            job_id = request.args.get('job_id')
+        x_axis, y_axis = None, None
     if job_id is None:
         flash('Job ID invalid!'.format(job_id), category='danger')
         return render_template('index.html')
@@ -134,8 +138,13 @@ def report(job_id=None):
         s3_file_key = job['s3_file_key']
         scale = job.get('scale', False)
 
-        # Visualize the first two columns that are not on the exclude list
-        viz_columns= [c for c in job['columns'] if c.lower() not in EXCLUDE_COLUMNS][:2]
+        print('report: x_axis:{}, y_axis:{}'.format(x_axis, y_axis))
+        if x_axis is None or y_axis is None:
+            # Visualize the first two columns that are not on the exclude list
+            viz_columns = [c for c in job['columns'] if c.lower() not in EXCLUDE_COLUMNS][:2]
+        else:
+            viz_columns = [x_axis, y_axis]
+        print('report: viz columns: {}'.format(viz_columns  ))
 
         data = s3_to_df(s3_file_key)
         print('report: s3 download and format time: {:.2f}s'.format(time.time()-s3_start_time))
