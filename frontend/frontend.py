@@ -26,26 +26,21 @@ import matplotlib
 matplotlib.use('Agg')  # needed to ensure that plotting works on a server with no display
 
 import os
-import time
-import sys
 
-from flask import request, render_template, redirect, url_for, flash, send_file, make_response
+from flask import request, render_template, redirect, url_for, flash, make_response
 from flask_app import app
 from werkzeug.utils import secure_filename
-import pandas as pd
 
 from utils import format_date_time
-from utils import tasks_to_best_results, best_covar_type_tied_k, task_stats
-from utils import plot_cluster_fig, plot_spatial_cluster_fig, plot_aic_bic_fig, png_for_template
-from utils import fig_to_png, spatial_columns_exist
+from utils import tasks_to_best_results, task_stats, filter_by_min_members
+from utils import plot_cluster_fig, plot_aic_bic_fig, plot_count_fig
+from utils import fig_to_png
 from utils import allowed_file, upload_to_s3, s3_to_df
 
-from database import add_job_to_mongo, mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks
+from database import mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks
 from database import mongo_add_s3_file_key
 from worker import create_tasks, rerun_task
 from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS, SPATIAL_COLUMNS
-
-import json
 
 
 """ Flask routes """
@@ -99,12 +94,15 @@ def status(job_id=None):
 def report(job_id=None):
     if request.method == 'POST':
         job_id = request.form.get('job_id')
-        x_axis = request.form.get('x_axis')
-        y_axis = request.form.get('y_axis')
+        x_axis = request.form.get('x_axis', None)
+        y_axis = request.form.get('y_axis', None)
+        min_members = request.form.get('min_members', None)
     elif request.method == 'GET':
         if job_id is None:
             job_id = request.args.get('job_id')
-        x_axis, y_axis = None, None
+        x_axis = request.args.get('x_axis', None)
+        y_axis = request.args.get('y_axis', None)
+        min_members = request.args.get('min_members', None)
     if job_id is None:
         flash('Job ID invalid!'.format(job_id), category='danger')
         return render_template('index.html')
@@ -121,6 +119,11 @@ def report(job_id=None):
         flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
         return redirect(url_for('status', job_id=job_id))
 
+    if min_members is None:
+        min_members = 25
+    else:
+        min_members = int(min_members)
+    tasks = filter_by_min_members(tasks, min_members=min_members)
     start_time_date, start_time_clock = format_date_time(job['start_time'])
 
     covar_types, covar_tieds, ks, labels = tasks_to_best_results(tasks)
@@ -140,27 +143,40 @@ def report(job_id=None):
     columns = list(data.columns)
     spatial_columns = [c for c in columns if c.lower() in SPATIAL_COLUMNS][:2]
 
-    return render_template('report.html', job_id=job_id, filename=filename, scale=scale,
-                           covar_type_tied_k=zip(covar_types, covar_tieds, ks),
-                           columns=columns, cluster_columns=cluster_columns,
-                           viz_columns=viz_columns, spatial_columns=spatial_columns,
+    return render_template('report.html', job_id=job_id, filename=filename, scale=scale, min_members=min_members,
+                           covar_type_tied_k=zip(covar_types, covar_tieds, ks), columns=columns,
+                           cluster_columns=cluster_columns, viz_columns=viz_columns, spatial_columns=spatial_columns,
                            start_time_date=start_time_date, start_time_clock=start_time_clock)
 
 
-@app.route('/plot/aic_bic/<job_id>')
-@app.route('/plot/aic_bic/<job_id>/')
-def plot_aic_bic(job_id=None):
+@app.route('/plot/aic_bic/')
+def plot_aic_bic():
+    job_id = request.args.get('job_id', None)
+    min_members = int(request.args.get('min_members', None))
     if job_id is None:
         return None
-    job = mongo_get_job(job_id)
-    n_tasks = job['n_tasks']
     tasks = mongo_get_tasks(job_id)
-    n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
-    if n_tasks != n_tasks_done:
-        return None
+    if min_members is not None:
+        tasks = filter_by_min_members(tasks, min_members)
     fig = plot_aic_bic_fig(tasks)
     aic_bic_plot = fig_to_png(fig)
     response = make_response(aic_bic_plot.getvalue())
+    response.mimetype = 'image/png'
+    return response
+
+
+@app.route('/plot/count/')
+def plot_count():
+    job_id = request.args.get('job_id', None)
+    min_members = int(request.args.get('min_members', None))
+    if job_id is None:
+        return None
+    tasks = mongo_get_tasks(job_id)
+    if min_members is not None:
+        tasks = filter_by_min_members(tasks, min_members)
+    fig = plot_count_fig(tasks)
+    count_plot = fig_to_png(fig)
+    response = make_response(count_plot.getvalue())
     response.mimetype = 'image/png'
     return response
 
@@ -172,18 +188,15 @@ def plot_cluster():
     x_axis = request.args.get('x_axis')
     y_axis = request.args.get('y_axis')
     show_ticks = request.args.get('show_ticks', 'True') == 'True'
+    min_members = int(request.args.get('min_members', None))
     if job_id is None or x_axis is None or y_axis is None:
         return None
 
     job = mongo_get_job(job_id)
-    n_tasks = job['n_tasks']
     tasks = mongo_get_tasks(job_id)
-    n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
 
-    if n_tasks != n_tasks_done:
-        flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
-        return redirect(url_for('status', job_id=job_id))
-
+    if min_members is not None:
+        tasks = filter_by_min_members(tasks, min_members)
     covar_types, covar_tieds, ks, labels = tasks_to_best_results(tasks)
     s3_file_key = job['s3_file_key']
     viz_columns = [x_axis, y_axis]
@@ -217,13 +230,6 @@ def submit():
 
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
-            # df = pd.read_csv(filepath, nrows=1)
-
-            # exclude_columns = 'exclude_columns' in request.form
-            # if exclude_columns:
-            #     columns = [c for c in df.columns if c.lower() not in EXCLUDE_COLUMNS]
-            # else:
-            #     columns = list(df.columns)
 
             n_init = int(request.form.get('n_init'))
             n_experiments = int(request.form.get('n_experiments'))
@@ -259,12 +265,6 @@ def submit():
 
 @app.route('/rerun/', methods=['POST'])
 def rerun():
-    # if request.method == 'POST':
-    #     job_id = request.form.get('job_id')
-    #     task_id = int(request.form.get('task_id'))
-    # elif request.method == 'GET' and job_id is None:
-    #     job_id = request.args.get('job_id')
-    #     task_id = int(request.args.get('task_id'))
     job_id = request.form.get('job_id')
     task_ids = request.form.get('task_ids')
     task_ids = [int(i) for i in task_ids.split(',')]

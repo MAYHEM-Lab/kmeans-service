@@ -9,12 +9,12 @@ import random
 import time
 import base64
 import urllib.parse
-import sys
 
 import boto3
 from botocore.exceptions import ClientError
 
 import pandas as pd
+import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -306,6 +306,14 @@ def task_stats(n_tasks, tasks):
     return stats
 
 
+def filter_by_min_members(tasks, min_members=10):
+    filtered_tasks = []
+    for task in tasks:
+        if np.all(np.bincount(task['labels']) > min_members):
+            filtered_tasks += [task]
+    return filtered_tasks
+
+
 """ Plotting functions  """
 
 
@@ -355,20 +363,18 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k, show_ticks=True):
     return fig
 
 
-# def plot_count_fig(tasks):
-#     """ Creates a 3x2 plot of the number (count) of data points for each k in each covar. """
-#     sns.set(context='talk')
-#     df = pd.DataFrame(tasks)
-#     df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
-#     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
-#     df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
-#     df['aic'] = df['aic'].astype('float')
-#     df['bic'] = df['bic'].astype('float')
-#     f = sns.factorplot(x='k', kind='count', col='covar_type', row='covar_tied', data=df,
-#                       row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True,
-#                       palette='Blues_d')
-#     f.set_titles("{col_name}-{row_name}")
-#     return f.fig
+def plot_count_fig(tasks):
+    """ Creates a 3x2 plot of the number (count) of data points for each k in each covar. """
+    sns.set(context='talk')
+    df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied']))
+    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
+    df['covar_type'] = [x.capitalize() for x in df['covar_type']]
+    df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
+    f = sns.factorplot(x='k', kind='count', col='covar_type', row='covar_tied', data=df,
+                      row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True,
+                      palette='Blues_d')
+    f.set_titles("{col_name}-{row_name}")
+    return f.fig
 
 
 def plot_spatial_cluster_fig(data, covar_type_tied_labels_k):
