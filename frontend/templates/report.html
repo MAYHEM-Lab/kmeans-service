@@ -43,6 +43,7 @@
       </div>
     </form>
   </div>
+  <br><br>
 
   <h3>Cluster Plots</h3>
   <p>
@@ -78,13 +79,22 @@
   <div id="cluster_plot_loading">
       <i class="fa fa-spinner fa-pulse fa-fw"></i>
       <span>Loading Cluster Plots...</span>
-    </div>
+  </div>
+  <div id="cluster_plot_loading_error" class="alert alert-warning alert-dismissible fade show" role="alert" style="display: none;">
+    <button type="button" class="close" aria-label="Close"
+            onclick="$('#cluster_plot_load_error').hide(); $('#cluster_plot_loading').show();
+            $('#cluster_plot_img').attr('src', $('#cluster_plot_img').attr('src'))">
+      <span class="fa fa-refresh" aria-hidden="true"></span>
+    </button>
+    <strong>Error</strong> loading Cluster Plots.
+  </div>
   <img id="cluster_plot_img" src="{{url_for('plot_cluster', job_id=job_id, x_axis=viz_columns[0], y_axis=viz_columns[1],
-  min_members=min_members)}}" class="img-fluid" onload="$('#cluster_plot_loading').hide();$('#cluster_plot_img').show();"/>
+  min_members=min_members)}}" class="img-fluid" onload="$('#cluster_plot_loading').hide();$('#cluster_plot_img').show();"
+  onerror="$('#cluster_plot_img').hide();$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').show();"/>
   <br><br>
 
-  <h3>Spatial Cluster Plots</h3>
   {% if (spatial_columns|length) == 2 %}
+  <h3>Spatial Cluster Plots</h3>
   <p>
     Recommended cluster assignments are visualized below:
   </p>
@@ -92,12 +102,19 @@
     <i class="fa fa-spinner fa-pulse fa-fw"></i>
     <span>Loading Spatial Cluster Plots...</span>
   </div>
-  <img src="{{url_for('plot_cluster', job_id=job_id, x_axis=spatial_columns[0], y_axis=spatial_columns[1],
-  show_ticks=False, min_members=min_members)}}" class="img-fluid" onload="$('#spatial_plot_loading').hide();"/>
-  {% else %}
-  <p> Not available.</p>
-  {% endif %}
+  <div id="spatial_plot_loading_error" class="alert alert-warning alert-dismissible fade show" role="alert" style="display: none;">
+    <button type="button" class="close" aria-label="Close"
+            onclick="$('#spatial_plot_load_error').hide(); $('#spatial_plot_loading').show();
+            $('#spatial_plot_img').attr('src', $('#spatial_plot_img').attr('src'))">
+      <span class="fa fa-refresh" aria-hidden="true"></span>
+    </button>
+    <strong>Error</strong> loading Cluster Plots.
+  </div>
+  <img id="spatial_plot_img" src="{{url_for('plot_cluster', job_id=job_id, x_axis=spatial_columns[0], y_axis=spatial_columns[1],
+  show_ticks=False, min_members=min_members)}}" class="img-fluid" onload="$('#spatial_plot_loading').hide();"
+  onerror="$('#spatial_plot_img').hide();$('#spatial_plot_loading').hide();$('#spatial_plot_loading_error').show();"/>
   <br><br>
+  {% endif %}
 
   <h3>AIC and BIC Plots</h3>
   <p>
@@ -108,8 +125,17 @@
     <i class="fa fa-spinner fa-pulse fa-fw"></i>
     <span>Loading AIC and BIC Plots...</span>
   </div>
-  <img src="{{url_for('plot_aic_bic', job_id=job_id, min_members=min_members)}}" class="img-fluid"
-       onload="$('#aic_bic_plot_loading').hide();"/>
+  <div id="aic_bic_plot_loading_error" class="alert alert-warning alert-dismissible fade show" role="alert" style="display: none;">
+    <button type="button" class="close" aria-label="Close"
+            onclick="$('#aic_bic_plot_load_error').hide(); $('#aic_bic_plot_loading').show();
+            $('#aic_bic_plot_img').attr('src', $('#aic_bic_plot_img').attr('src'))">
+      <span class="fa fa-refresh" aria-hidden="true"></span>
+    </button>
+    <strong>Error</strong> loading Cluster Plots.
+  </div>
+  <img id="aic_bic_plot_img" src="{{url_for('plot_aic_bic', job_id=job_id, min_members=min_members)}}" class="img-fluid"
+       onload="$('#aic_bic_plot_loading').hide();"
+  onerror="$('#aic_bic_plot_img').hide();$('#aic_bic_plot_loading').hide();$('#aic_bic_plot_loading_error').show();"/>
   <br><br>
 
   <h3>Count Plots</h3>
@@ -120,8 +146,17 @@
     <i class="fa fa-spinner fa-pulse fa-fw"></i>
     <span>Loading Count Plots...</span>
   </div>
-  <img src="{{url_for('plot_count', job_id=job_id, min_members=min_members)}}" class="img-fluid"
-       onload="$('#count_plot_loading').hide();"/>
+  <div id="count_plot_loading_error" class="alert alert-warning alert-dismissible fade show" role="alert" style="display: none;">
+    <button type="button" class="close" aria-label="Close"
+            onclick="$('#count_plot_load_error').hide(); $('#count_plot_loading').show();
+            $('#count_plot_img').attr('src', $('#count_plot_img').attr('src'))">
+      <span class="fa fa-refresh" aria-hidden="true"></span>
+    </button>
+    <strong>Error</strong> loading Cluster Plots.
+  </div>
+  <img id="count_plot_img" src="{{url_for('plot_count', job_id=job_id, min_members=min_members)}}" class="img-fluid"
+       onload="$('#count_plot_loading').hide();"
+  onerror="$('#count_plot_img').hide();$('#count_plot_loading').hide();$('#count_plot_loading_error').show();"/>
 
 {% endblock %}
 {% block scripts %}

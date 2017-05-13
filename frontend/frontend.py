@@ -213,13 +213,13 @@ def submit():
     if request.method == 'POST':
         # Ensure that file is part of the post
         if 'file' not in request.files:
-            flash("No file part in form submission!", 'danger')
+            flash("No file part in form submission!", category='danger')
             return redirect(url_for('index'))
 
         # Ensure that files were selected by user
         file = request.files['file']
         if file.filename == '':
-            flash("No selected file!", 'danger')
+            flash("No selected file!", category='danger')
             return redirect(url_for('index'))
 
         # Ensure that file type is allowed
@@ -250,13 +250,13 @@ def submit():
             create_tasks.delay(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_key, scale)
             print('creating all tasks asynchronously')
             flash('Your request with job ID "{}" and {} tasks is being submitted. Refresh this page for updates.'.format(
-                job_id, n_tasks), 'success')
+                job_id, n_tasks), category='success')
 
             return redirect(url_for('status', job_id=job_id))
 
         else:
             filename = secure_filename(file.filename)
-            flash('Incorrect file extension for file "{}"!'.format(filename), 'danger')
+            flash('Incorrect file extension for file "{}"!'.format(filename), category='danger')
             return redirect(url_for('index'))
 
     else:
