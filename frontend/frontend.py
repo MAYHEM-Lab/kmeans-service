@@ -120,7 +120,7 @@ def report(job_id=None):
         return redirect(url_for('status', job_id=job_id))
 
     if min_members is None:
-        min_members = 25
+        min_members = 10
     else:
         min_members = int(min_members)
     tasks = filter_by_min_members(tasks, min_members=min_members)
