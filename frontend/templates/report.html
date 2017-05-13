@@ -89,7 +89,8 @@
     <strong>Error</strong> loading Cluster Plots.
   </div>
   <img id="cluster_plot_img" src="{{url_for('plot_cluster', job_id=job_id, x_axis=viz_columns[0], y_axis=viz_columns[1],
-  min_members=min_members)}}" class="img-fluid" onload="$('#cluster_plot_loading').hide();$('#cluster_plot_img').show();"
+  min_members=min_members)}}" class="img-fluid"
+       onload="$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').hide();$('#cluster_plot_img').show();"
   onerror="$('#cluster_plot_img').hide();$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').show();"/>
   <br><br>
 
@@ -111,7 +112,8 @@
     <strong>Error</strong> loading Cluster Plots.
   </div>
   <img id="spatial_plot_img" src="{{url_for('plot_cluster', job_id=job_id, x_axis=spatial_columns[0], y_axis=spatial_columns[1],
-  show_ticks=False, min_members=min_members)}}" class="img-fluid" onload="$('#spatial_plot_loading').hide();"
+  show_ticks=False, min_members=min_members)}}" class="img-fluid"
+       onload="$('#spatial_plot_loading').hide();$('#spatial_plot_loading_error').hide();$('#spatial_plot_img').show();"
   onerror="$('#spatial_plot_img').hide();$('#spatial_plot_loading').hide();$('#spatial_plot_loading_error').show();"/>
   <br><br>
   {% endif %}
@@ -134,7 +136,7 @@
     <strong>Error</strong> loading Cluster Plots.
   </div>
   <img id="aic_bic_plot_img" src="{{url_for('plot_aic_bic', job_id=job_id, min_members=min_members)}}" class="img-fluid"
-       onload="$('#aic_bic_plot_loading').hide();"
+       onload="$('#aic_bic_plot_loading').hide();$('#aic_bic_plot_loading_error').hide();$('#aic_bic_plot_img').show();"
   onerror="$('#aic_bic_plot_img').hide();$('#aic_bic_plot_loading').hide();$('#aic_bic_plot_loading_error').show();"/>
   <br><br>
 
@@ -155,7 +157,7 @@
     <strong>Error</strong> loading Cluster Plots.
   </div>
   <img id="count_plot_img" src="{{url_for('plot_count', job_id=job_id, min_members=min_members)}}" class="img-fluid"
-       onload="$('#count_plot_loading').hide();"
+       onload="$('#count_plot_loading').hide();$('#count_plot_loading_error').hide();$('#count_plot_img').show();"
   onerror="$('#count_plot_img').hide();$('#count_plot_loading').hide();$('#count_plot_loading_error').show();"/>
 
 {% endblock %}
