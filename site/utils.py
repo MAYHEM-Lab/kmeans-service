@@ -256,7 +256,8 @@ def upload_to_s3(filepath, filename, job_id):
 def s3_to_df(s3_file_key):
     """ Downloads file from S3 and converts it to a Pandas DataFrame. """
     s3 = boto3.client('s3')
-    file_name = '/tmp/data_file_{}'.format(random.randint(1, 1e6))
+    # Add random number to file name to avoid collisions with other processes on the same machine
+    file_name = '/tmp/{}_{}'.format(s3_file_key.replace('/', '_'), random.randint(1, 1e6))
     s3.download_file(S3_BUCKET, s3_file_key, file_name)
     df = pd.read_csv(file_name)
     os.remove(file_name)
