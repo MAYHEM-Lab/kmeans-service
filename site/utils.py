@@ -1,5 +1,5 @@
 """
-Misc. utility functions and wrapper functions for interacting with DynamoDB.
+Misc. utility functions for formatting, data wrangling, and plotting.
 
 Author: Angad Gill
 """
@@ -11,7 +11,6 @@ import base64
 import urllib.parse
 
 import boto3
-from botocore.exceptions import ClientError
 
 import pandas as pd
 import numpy as np
@@ -20,13 +19,11 @@ from matplotlib import pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 from flask import make_response
-
-from config import DYNAMO_URL, DYNAMO_TABLE, DYNAMO_REGION, S3_BUCKET
-from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS, SPATIAL_COLUMNS, DYNAMO_RETRY_EXCEPTIONS
+from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS, SPATIAL_COLUMNS, S3_BUCKET
 
 
 def format_date_time(start_time_str):
-    """ Converts epoch time string to (Date, Time) formated as ('04 April 2017', '11:01 AM') """
+    """ Converts epoch time string to (Date, Time) formatted as ('04 April 2017', '11:01 AM') """
     start_time = time.localtime(float(start_time_str))
     start_time_date = time.strftime("%d %B %Y", start_time)
     start_time_clock = time.strftime("%I:%M %p", start_time)
@@ -35,195 +32,6 @@ def format_date_time(start_time_str):
 
 def float_to_str(num):
     return '{:.4f}'.format(num)
-
-
-def generate_id(job_id, task_id=0):
-    return int('{}'.format(int(job_id))+'{0:04d}'.format(int(task_id)))
-
-
-def generate_job_id():
-    min, max = 100, 1e9
-    id = random.randint(min, max)
-    while job_id_exists(id):
-        id = random.randint(min, max)
-    return id
-
-
-""" DynamoDB wrapper functions """
-
-
-def get_tasks_from_dynamodb(job_id, max_retries=10):
-    """ Get a list of all task entries in DynamoDB for the given job_id. """
-    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
-    table = dynamodb.Table(DYNAMO_TABLE)
-
-    tasks = []
-    task_id = 0
-    id = generate_id(job_id, task_id)
-    item = table.get_item(Key={'id': id})
-    if 'Item' not in item:
-        return []  # item doesn't exist
-    task = item['Item']
-    n_tasks = int(task['n_tasks'])
-
-    # Batch getter / reader script:
-    keys = [{'id': generate_id(job_id, i)} for i in range(n_tasks)]
-    batch_size = 25
-    batch_keys = [keys.pop() for _ in range(min(batch_size, len(keys)))]
-
-    retries = 0
-    while len(batch_keys) > 0:
-        try:
-            response = dynamodb.batch_get_item(RequestItems={DYNAMO_TABLE: {'Keys': batch_keys}})
-
-            batch_items = response['Responses'][DYNAMO_TABLE]
-            tasks += batch_items
-
-            # Handle unprocessed keys
-            if len(response['UnprocessedKeys']) > 0:
-                batch_keys = response['UnprocessedKeys'][DYNAMO_TABLE]['Keys']
-            else:
-                batch_keys = []
-
-            retries = 0
-
-        except ClientError as err:
-            if err.response['Error']['Code'] not in DYNAMO_RETRY_EXCEPTIONS:
-                raise err
-            if retries > max_retries:
-                raise Exception('Maximum retries reached with {}'.format(err.response['Error']['Code']))
-            print('get_tasks_from_dynamodb. retry count: {}'.format(retries))
-            retries += 1
-            time.sleep(2 ** retries)
-
-        batch_keys += [keys.pop() for _ in range(min(batch_size - len(batch_keys), len(keys)))]
-
-    return tasks
-
-
-def job_id_exists(job_id, max_retries=10):
-    """ Check to see if a job_id exists; by checking to see if task_id=0 for that job_id exists."""
-    id = generate_id(job_id)
-    response = get_item_by_id(id, max_retries)
-    return 'Item' in response
-
-
-def get_item_by_id(id, max_retries=10):
-    """ Get item by 'id' from DynamoDB """
-    key = dict(id=id)
-    response = get_item_by_key(key, max_retries)
-    return response
-
-
-def get_item_by_key(key, max_retries=10):
-    """ Get item by key from DynamoDB. This method does automatic retries in case of exceptions """
-    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
-    table = dynamodb.Table(DYNAMO_TABLE)
-    success = False
-    retries = 0
-    while not success:
-        try:
-            response = table.get_item(Key=key)
-            retries = 0
-            success = True
-        except ClientError as err:
-            if err.response['Error']['Code'] not in DYNAMO_RETRY_EXCEPTIONS:
-                raise err
-            if retries > max_retries:
-                raise Exception('Maximum retries reached with {}'.format(err.response['Error']['Code']))
-            print('submit_job. retry count: {}'.format(retries))
-            retries += 1
-            time.sleep(2 ** retries)
-    return response
-
-
-def put_first_task_by_job_id(job_id, n_tasks, filename, max_retries=10):
-    """ Put first task for a job in DynamoDB."""
-    id = generate_id(job_id, 0)
-    item = dict(id=id, job_id=job_id, n_tasks=n_tasks, task_status='pending', filename=filename,
-                start_time=str(time.time()))
-    return put_item_by_item(item, max_retries)
-
-
-def put_item_by_item(item, max_retries=10):
-    """ Put item in DynamoDB. This method does automatic retries in case of exceptions """
-    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
-    table = dynamodb.Table(DYNAMO_TABLE)
-    success = False
-    retries = 0
-    response = None
-    while not success:
-        try:
-            response = table.put_item(Item=item)
-            retries = 0
-            success = True
-        except ClientError as err:
-            if err.response['Error']['Code'] not in DYNAMO_RETRY_EXCEPTIONS:
-                raise err
-            if retries > max_retries:
-                raise Exception('Maximum retries reached with {}'.format(err.response['Error']['Code']))
-            print('submit_job. retry count: {}'.format(retries))
-            retries += 1
-            time.sleep(2 ** retries)
-    return response
-
-
-def update_at_dynamo(id, aic, bic, elapsed_time, elapsed_read_time, elapsed_processing_time, labels):
-    """ Update task entry on DynamoDB with computed values. """
-    key = {'id': id}
-    update_expression = 'SET aic=:val1, bic=:val2, elapsed_time=:val3, task_status=:val4, elapsed_read_time=:val5, ' \
-                        'elapsed_processing_time=:val6, labels=:val7'
-    expression_attribute_values = {':val1': aic, ':val2': bic, ':val3': elapsed_time, ':val4': 'done',
-                                   ':val5': elapsed_read_time, ':val6': elapsed_processing_time, ':val7': labels}
-    response = update_item_by_key(expression_attribute_values, key, update_expression)
-    return response
-
-
-def update_at_dynamo_error(id):
-    """ Update task entry on DynamoDB with 'error' status. """
-    key = {'id': id}
-    update_expression = 'SET task_status = :val1'
-    expression_attribute_values = {':val1': 'error'}
-    response = update_item_by_key(expression_attribute_values, key, update_expression)
-    return response
-
-
-def update_item_by_key(expression_attribute_values, key, update_expression, max_retries=10):
-    """ Updat item in DynamoDB. This method does automatic retries in case of exceptions """
-    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
-    table = dynamodb.Table(DYNAMO_TABLE)
-    success = False
-    retries = 0
-    response = None
-    while not success:
-        try:
-            response = table.update_item(Key=key, UpdateExpression=update_expression,
-                                         ExpressionAttributeValues=expression_attribute_values)
-            retries = 0
-            success = True
-        except ClientError as err:
-            if err.response['Error']['Code'] not in DYNAMO_RETRY_EXCEPTIONS:
-                raise err
-            if retries > max_retries:
-                raise Exception('Maximum retries reached with {}'.format(err.response['Error']['Code']))
-            print('submit_job. retry count: {}'.format(retries))
-            retries += 1
-            time.sleep(2 ** retries)
-        return response
-
-
-def delete_items_by_job_id(job_id):
-    """ Batch delete all tasks for a job_id """
-    item = get_item_by_id(generate_id(job_id))
-    if 'Item' not in item:
-        print('Job ID {} does not exist'.format(job_id))
-        return
-    n_tasks = item['Item']['n_tasks']
-    dynamodb = boto3.resource('dynamodb', region_name=DYNAMO_REGION, endpoint_url=DYNAMO_URL)
-    table = dynamodb.Table(DYNAMO_TABLE)
-    with table.batch_writer() as batch:
-        for i in range(n_tasks):
-            batch.delete_item(Key={'id': generate_id(job_id, i)})
 
 
 """ Data wrangling functions """
@@ -248,10 +56,8 @@ def tasks_to_best_results(tasks):
     """
     # Filter list of dicts to reduce the size of Pandas DataFrame
     df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied', 'bic', '_id']))
-    # print('tasks_to_best_results: size of df object: {:,}'.format(sys.getsizeof(df)))
 
     # Subset df to needed columns and fix types
-    # df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'labels']]
     df['bic'] = df['bic'].astype('float')
     df['k'] = df['k'].astype('int')
 
@@ -268,12 +74,6 @@ def tasks_to_best_results(tasks):
     labels = []
     for row in df['_id']:
         labels += [t['labels'] for t in tasks if t['_id'] == row]
-    # df['labels'] = labels
-
-    # Clean up and return df
-    # df = df.drop(['bic_x', 'bic_diff', '_id'], axis=1)
-
-    # df.columns = ['covar_type', 'covar_tied', 'k', 'bic', 'labels']
 
     return df['covar_type'].tolist(), df['covar_tied'].tolist(), df['k'].tolist(), labels
 
@@ -321,7 +121,6 @@ def plot_aic_bic_fig(tasks):
     sns.set(context='talk')
     # Filter list of dicts to reduce the size of Pandas DataFrame
     df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']))
-    # print('plot_aic_bic_fig: size of df object: {:,}'.format(sys.getsizeof(df)))
     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
     df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
     df['aic'] = df['aic'].astype('float')
@@ -337,7 +136,6 @@ def plot_aic_bic_fig(tasks):
 def plot_cluster_fig(data, columns, covar_type_tied_labels_k, show_ticks=True):
     """ Creates a 3x2 plot scatter plot using the first two columns """
     sns.set(context='talk', style='white')
-    # df = tasks_to_best_results(tasks)
     columns = columns[:2]
 
     fig = plt.figure()
@@ -449,7 +247,6 @@ def generate_s3_file_key(job_id, filename):
 
 
 def upload_to_s3(filepath, filename, job_id):
-    # s3_file_key = '{}/{}/{}'.format(UPLOAD_FOLDER, job_id, filename)
     s3_file_key = generate_s3_file_key(job_id, filename)
     s3 = boto3.resource('s3')
     s3.meta.client.upload_file(filepath, S3_BUCKET, s3_file_key)

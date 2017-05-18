@@ -1,24 +1,21 @@
 """
-Simple server to serve a user facing interface allowing them to submit data for processing
-and to see reports once the they are ready.
+Simple server with interface allowing users to submit data for processing and to see status and reports when ready.
 
-Purposes of this server:
-1) Provide an interface for users to upload their data files
-2) Provide an interface for users to view the results of the analysis
-3) Generate necessary assets needed for 1) and 2), such as, job_id and plot images.
-4) Generate all the tasks needed to complete a job
-5) Future: Re-run tasks that failed
+The purpose of the Frontend is to do the following:
+1. Provide an interface for users to upload their data files to the Backend Storage.
+2. Provide an interface for users to view the status and results of the analysis.
+3. Generate all the tasks (individual K-Means fit runs) needed to complete a job.
+4. Generate necessary plots and tables needed for 1. and 2.
+5. Allow users to rerun tasks that failed.
 
 Architecture:
-Frontend Flask server ---> Amazon SNS ---> Amazon Lambda or Celery Worker
-    |           |         (N/A if using     |       ^
-                           Celery Worker)   |       |
-    |           |                           |       |
-    v           v                           |       |
-Amazon         Amazon    <------------------+-------+
-S3             DynamoDB                             |
-    |                                               |
-    +-----------------------------------------------+
+Frontend Flask server --> Celery Worker
+    |           |               |   ^
+    v           v               |   |
+Amazon S3      MongoDB  <-------+   |
+    |                           |   |
+    |                           |   |
+    +---------------------------+---+
 
 Author: Angad Gill
 """
