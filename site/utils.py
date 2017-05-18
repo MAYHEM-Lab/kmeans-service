@@ -94,9 +94,9 @@ def task_stats(n_tasks, tasks):
         n_tasks_pending = len([x for x in tasks if x['task_status'] == 'pending'])
         n_tasks_error = len([x for x in tasks if x['task_status'] == 'error'])
 
-    per_done = '{:.0f}'.format(n_tasks_done / n_tasks * 100)
-    per_pending = '{:.0f}'.format(n_tasks_pending / n_tasks * 100)
-    per_error = '{:.0f}'.format(n_tasks_error / n_tasks * 100)
+    per_done = '{:.1f}'.format(n_tasks_done / n_tasks * 100)
+    per_pending = '{:.1f}'.format(n_tasks_pending / n_tasks * 100)
+    per_error = '{:.1f}'.format(n_tasks_error / n_tasks * 100)
 
     stats = dict(n_tasks=n_tasks,
                  n_tasks_done=n_tasks_done, per_done=per_done,

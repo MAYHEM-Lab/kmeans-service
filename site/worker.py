@@ -86,8 +86,8 @@ def run_kmeans(data, n_clusters, covar_type, covar_tied, n_init):
 
 @app.task
 def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, columns, scale):
-    start_time = time.time()
     try:
+        start_time = time.time()
         start_read_time = time.time()
         data = s3_to_df(s3_file_key)
         elapsed_read_time = time.time() - start_read_time

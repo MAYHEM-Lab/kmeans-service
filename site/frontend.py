@@ -246,7 +246,7 @@ def submit():
             # Create all tasks asynchronously
             create_tasks.delay(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_key, scale)
             print('creating all tasks asynchronously')
-            flash('Your request with job ID "{}" and {} tasks is being submitted. Refresh this page for updates.'.format(
+            flash('Your request with job ID "{}" and {} tasks are being submitted. Refresh this page for updates.'.format(
                 job_id, n_tasks), category='success')
 
             return redirect(url_for('status', job_id=job_id))
