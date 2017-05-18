@@ -245,7 +245,7 @@ def submit():
 
             # Create all tasks asynchronously
             create_tasks.delay(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_key, scale)
-            print('creating all tasks asynchronously')
+            # print('creating all tasks asynchronously')
             flash('Your request with job ID "{}" and {} tasks are being submitted. Refresh this page for updates.'.format(
                 job_id, n_tasks), category='success')
 
@@ -266,7 +266,7 @@ def rerun():
     task_ids = request.form.get('task_ids')
     task_ids = [int(i) for i in task_ids.split(',')]
     n = len(task_ids)
-    print('job_id: {}, task_ids:{}'.format(job_id, task_ids))
+    # print('job_id: {}, task_ids:{}'.format(job_id, task_ids))
     for task_id in task_ids:
         rerun_task.delay(job_id, task_id)
 
