@@ -5,22 +5,26 @@ using K-Means algorithm with Mahalanois distance and Bayesian Information Criter
 Author: Angad Gill
 
 ## Architecture
-
-- _Frontend_: The frontend is provided by a Python Flask server (under the `frontend` directory). 
+The system consists of a total of five services:
+- _Frontend_: The frontend is provided by a Python Flask server (`site/frontend.py`) paired with Gunicorn and NGINX. 
 - _Backend_: There are two options for the backend:  
-  1. Amazon SNS as a queue and Amazon Lambda as a worker. The code for this is available under the `backend` directory.  
-  2. RabbitMQ as a queue and Python Celery as a worker. The code of this is currently under the `frontend` directory. This will be fixed soon.  
-- _Storage_: Amazon DynamoDB is used for storing information about all jobs (and tasks). Amazon S3 is used to store files uploaded by users.  
+  1. Worker: Python Celery to perform all analysis tasks asynchronously (`site/worker.py`).
+  2. Queue: RabbitMQ to broker messages between the Frontend and Workers.
+  3. Database: MongoDB to store all parameters for analyses and results of all tasks associated with each analysis.
+  4. Storage: Amazon S3 to store the data file uploaded by users.
 
 ## Purpose
-The purpose of the _frontend_ is to do the following:  
-1. Provide an interface for users to upload their data files.  
+The purpose of the _Frontend_ is to do the following:  
+1. Provide an interface for users to upload their data files to the Backend Storage.  
 2. Provide an interface for users to view the status and results of the analysis.  
 3. Generate all the tasks (individual K-Means fit runs) needed to complete a job.  
-4. Generate necessary assets needed for 1. and 2., such as, plot images.  
-5. Future: Re-run tasks that failed.
+4. Generate necessary plots and tables needed for 1. and 2.  
+5. Allow users to rerun tasks that failed.
 
-The purpose of the _backend_ is to do the following: 
-1. Run the analysis based on the data and parameters provided in the queue (Amazon SNS or RabbitMQ).  
-2. When done, update DynamoDB with the analysis results.  
+The purpose of the _Backend Worker_ is to do the following: 
+1. Run the analysis based on the data and parameters provided in the Backedn Queue.  
+2. When done, update the Backend Database with the analysis results.  
 
+
+## Installation  
+See `site/README.md`.

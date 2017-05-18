@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}K-Means - Status - {{job_id}}{% endblock %}
+{% block head %}
+<!--CSS-->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.15/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.3.1/css/buttons.bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/select/1.2.2/css/select.dataTables.min.css">
+
+<!--JavaScript-->
+<script src="https://cdn.datatables.net/1.10.15/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.15/js/dataTables.bootstrap4.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/1.3.1/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/1.3.1/js/buttons.bootstrap4.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/1.3.1/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/select/1.2.2/js/dataTables.select.min.js"></script>
+
+{% endblock %}
+{% block body %}
+  <h1>Status for Job ID: {{job_id}}</h1>
+  <p class="text-muted">
+    Submitted at {{start_time_clock}} on {{start_time_date}} (UTC)
+    <br>File: "{{filename}}". Columns: "{{columns|join('", "')}}". Scale: "{{scale}}".
+  </p>
+  <p class="lead">Task completion progress:</p>
+  <div class="progress">
+    <div class="progress-bar bg-success" role="progressbar" style="width:{{stats['per_done']}}%"
+         aria-valuenow="{{stats['per_done']}}" aria-valuemin="0" aria-valuemax="100"></div>
+    <div class="progress-bar bg-info" role="progressbar" style="width:{{stats['per_pending']}}%"
+         aria-valuenow="{{stats['per_pending']}}" aria-valuemin="0" aria-valuemax="100"></div>
+    <div class="progress-bar bg-danger" role="progressbar" style="width:{{stats['per_error']}}%"
+         aria-valuenow="{{stats['per_error']}}" aria-valuemin="0" aria-valuemax="100"></div>
+  </div>
+  <p class="text-muted">
+    Total: {{stats['n_tasks']}},
+    Submitted: {{stats['n_tasks_submitted']}} ({{stats['per_submitted']}}%),
+    Pending: {{stats['n_tasks_pending']}} ({{stats['per_pending']}}%),
+    Error: {{stats['n_tasks_error']}} ({{stats['per_error']}}%),
+    Done: {{stats['n_tasks_done']}} ({{stats['per_done']}}%).
+  </p>
+  {% if stats['n_tasks']==stats['n_tasks_done']%}
+    <p><a class="btn btn-primary" href="{{url_for('report', job_id=job_id)}}" role="button">All Done! View report »</a></p>
+  {% endif %}
+
+  <h3>Details:</h3>
+  <p>Parameters, status, and output of all tasks associated with this job are listed below:</p>
+
+  <table id="details_table" class="table table-hover table-bordered" cellspacing="0" width="100%">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Task ID</th>
+        <th>Num. of Clusters</th>
+        <th>Covariance</th>
+        <th>BIC</th>
+        <th>AIC</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for task in tasks | sort(attribute='task_id') %}
+      <tr>
+        <td></td>
+        <td>{{task.task_id}}</td>
+        <td>{{task.k}}</td>
+        <td>
+          {{task.covar_type | capitalize}}
+          {% if task.covar_tied==True %}Tied{% endif %}
+          {% if task.covar_tied==False %}Untied{% endif %}
+        </td>
+        <td>{% if task.bic %}{{'{:.2f}'.format(task.bic)}}{%endif%}</td>
+        <td>{% if task.aic %}{{'{:.2f}'.format(task.aic)}}{%endif%}</td>
+        <td {%if task.task_status=="error" %} class="table-danger" {%endif%}>
+          {{task.task_status | capitalize}}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <!-- Form to submit task reruns -->
+  <form id="submit-tasks" class="form" method="post" name="rerun" action="{{url_for('rerun')}}" style="display:none">
+    <input type="hidden" id="job_id" name="job_id" value="{{job_id}}">
+    <input type="hidden" id="task_ids" name="task_ids">
+    <button type="submit"></button>
+  </form>
+  <br>
+{% endblock %}
+{% block scripts %}
+<script>
+  $(document).ready(function() {
+    var table = $('#details_table').DataTable( {
+      // stateSave: true,
+      "pageLength": 25,
+      lengthChange: false,
+      buttons: [{
+          extend:'selectAll',
+          text: 'All'
+        },
+        {
+          extend:'selectNone',
+          text: 'Clear'
+        },
+        {
+          extend:'selected',
+          text: 'Rerun',
+          action: function ( e, dt, node, config ) {
+            var task_ids = [];
+            $("#details_table tr.selected").each(function(){
+              task_id = $('td', this).eq(1).text();  // task id is at index 1
+              task_ids.push(task_id);
+            });
+            $('#submit-tasks [name="task_ids"]').val(task_ids);
+            $('#submit-tasks').submit();
+          }
+        },
+        {
+          extend: 'csvHtml5',
+          text: '<i class="fa fa-download"></i>',
+          titleAttr: 'Download All as CSV'
+        }
+      ],
+      columnDefs: [ {
+          orderable: false,
+          className: 'select-checkbox',
+          targets:   0
+        }],
+      select: {
+          style:    'multi'
+        },
+        order: [[ 1, 'asc' ]]
+    } );
+    table.buttons().container()
+        .appendTo( '#details_table_wrapper .col-md-6:eq(0)' );
+
+    $('#details_table_wrapper').css({"padding":"0"});
+  });
+</script>
+{% endblock%}

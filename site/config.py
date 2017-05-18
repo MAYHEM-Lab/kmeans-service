@@ -1,0 +1,15 @@
+DYNAMO_URL = 'https://dynamodb.us-west-1.amazonaws.com'
+DYNAMO_TABLE = 'kmeansservice'
+DYNAMO_REGION = 'us-west-1'
+DYNAMO_RETRY_EXCEPTIONS = ('ProvisionedThroughputExceededException', 'ThrottlingException')
+S3_BUCKET = 'kmeansservice'
+SNS_TOPIC_ARN = 'arn:aws:sns:us-west-1:000169391513:kmeans-service'
+UPLOAD_FOLDER = 'data'
+ALLOWED_EXTENSIONS = set(['csv'])
+EXCLUDE_COLUMNS = ['longitude', 'latitude']  # must be lower case
+SPATIAL_COLUMNS = ['longitude', 'latitude']  # must be lower case
+USE_LAMBDA = False
+MONGO_DBNAME = 'kmeansservice'
+FLASK_SECRET_KEY = 'change_this_key'
+CELERY_BROKER = 'amqp://localhost//'
+MONGO_URI = 'mongodb://localhost:27017/kmeansservice'
