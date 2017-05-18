@@ -93,7 +93,8 @@
       lengthChange: false,
       buttons: [{
           extend:'selectAll',
-          text: 'All'
+          text: 'All',
+          action: function(){selectFiltered();}
         },
         {
           extend:'selectNone',
@@ -102,15 +103,7 @@
         {
           extend:'selected',
           text: 'Rerun',
-          action: function ( e, dt, node, config ) {
-            var task_ids = [];
-            $("#details_table tr.selected").each(function(){
-              task_id = $('td', this).eq(1).text();  // task id is at index 1
-              task_ids.push(task_id);
-            });
-            $('#submit-tasks [name="task_ids"]').val(task_ids);
-            $('#submit-tasks').submit();
-          }
+          action: function(){rerunSelected();}
         },
         {
           extend: 'csvHtml5',
@@ -132,6 +125,23 @@
         .appendTo( '#details_table_wrapper .col-md-6:eq(0)' );
 
     $('#details_table_wrapper').css({"padding":"0"});
+
   });
+
+  function selectFiltered(){
+   var dt = $('#details_table').DataTable();
+   dt.rows({search:'applied'}).select();
+  }
+
+  function rerunSelected(){
+    var task_ids = [];
+    var dt = $('#details_table').DataTable();
+    selected = dt.rows('.selected').data();
+    for(var i=0; i<selected.length; i++){
+      task_ids.push(selected[i][1]);
+    }
+    $('#submit-tasks [name="task_ids"]').val(task_ids);
+    $('#submit-tasks').submit();
+  }
 </script>
 {% endblock%}
