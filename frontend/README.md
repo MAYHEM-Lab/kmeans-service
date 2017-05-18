@@ -1,14 +1,43 @@
+# K-Means Service
+This is a repository for a scalable web service that analyzes data to determine the best number of clusters for it, 
+using K-Means algorithm with Mahalanois distance and Bayesian Information Criterion.
+
+Author: Angad Gill
+
+## Architecture
+The system consists of a total of five services:
+- _Frontend_: The frontend is provided by a Python Flask server (`frontend.py`) paired with Gunicorn and NGINX. 
+- _Backend_: There are two options for the backend:  
+  1. Worker: Python Celery to perform all analysis tasks asynchronously (`worker.py`).
+  2. Queue: RabbitMQ to broker messages between the Frontend and Workers.
+  3. Database: MongoDB to store all parameters for analyses and results of all tasks associated with each analysis.
+  4. Storage: Amazon S3 to store the data file uploaded by users.
+
+## Purpose
+The purpose of the _Frontend_ is to do the following:  
+1. Provide an interface for users to upload their data files to the Backend Storage.  
+2. Provide an interface for users to view the status and results of the analysis.  
+3. Generate all the tasks (individual K-Means fit runs) needed to complete a job.  
+4. Generate necessary plots and tables needed for 1. and 2.  
+5. Allow users to rerun tasks that failed.
+
+The purpose of the _Backend Worker_ is to do the following: 
+1. Run the analysis based on the data and parameters provided in the Backedn Queue.  
+2. When done, update the Backend Database with the analysis results.  
+
+
 ## Localhost Server Setup
+1. Install and run RabbitMQ and MongoDB.
+2. Run the development server
 ```bash
 virtualenv venv --python=python3
 source venv/bin/activate
 pip install -r requirements.txt
 python frontend.py
 ```
-Install and run RabbitMQ.
-
+3. Run Celery worker.
 ```bash
-celery -A submit_job worker --loglevel=info
+celery worker -A worker --loglevel=info
 ```
 
 ## Production Server Setup from Scratch
@@ -27,7 +56,8 @@ can be auto-scaled behind a load-balancer.
 
 ### Backend
 #### Queue
-1. Create an Ubuntu (AMI: emi-CF65C654) instance on Eucalyptus ECI cloud.  
+1. Create an Ubuntu Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) 
+with the following ports open: `TCP 22`, `TCP 5672` and, optionally, `TCP 15672`.  
 2. Login to the instances:   
 ```bash
 ssh -i <key_file>.pem ubuntu@<instances IP>
@@ -36,7 +66,8 @@ ssh -i <key_file>.pem ubuntu@<instances IP>
 ```bash
 sudo apt-get -y update && sudo apt-get -y upgrade
 ```
-    At the prompt about `A new version of /boot/grub/menu.lst` select `keep the local version currently installed`.
+   - At the GRUB update prompt which reads: `A new version of /boot/grub/menu.lst`, 
+   select: `keep the local version currently installed`.
 4. Install RabbitMQ Server:
 ```bash
 sudo apt-get install -y rabbitmq-server
@@ -59,7 +90,8 @@ sudo service rabbitmq-server restart
 ```
 
 #### Database
-1. Create an Ubuntu (AMI: emi-CF65C654) instance on Eucalyptus ECI cloud.  
+1. Create an Ubuntu Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster)
+  with the following ports open: `TCP 22` and `TCP 27017`.
 2. Login to the instances:   
 ```bash
 ssh -i <key_file>.pem ubuntu@<instances IP>
@@ -104,7 +136,8 @@ sudo service mongod restart
 
 
 #### Worker
-1. Create an Ubuntu (AMI: emi-CF65C654) instance on Eucalyptus ECI cloud.  
+1. Create an Ubuntu Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) 
+with the following port open: `TCP 22`.  
 2. Login to the instances:   
 ```bash
 ssh -i <key_file>.pem ubuntu@<instances IP>
@@ -113,7 +146,8 @@ ssh -i <key_file>.pem ubuntu@<instances IP>
 ```bash
 sudo apt-get -y update && sudo apt-get -y upgrade
 ```
-    At the prompt about `A new version of /boot/grub/menu.lst` select `keep the local version currently installed`.
+   - At the GRUB update prompt which reads: `A new version of /boot/grub/menu.lst`, 
+   select: `keep the local version currently installed`.
 4. Install required packages: 
 ```bash
 sudo apt-get install -y python-virtualenv python3-tk git
@@ -152,7 +186,8 @@ sudo service worker start
 ```
 
 ### Frontend
-1. Create an Ubuntu (AMI: emi-CF65C654) instance on Eucalyptus ECI cloud.  
+1. Create an Ubuntu Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) 
+with the following ports open: `TCP 22` and `TCP 80`.  
 2. Login to the instances:   
 ```bash
 ssh -i <key_file>.pem ubuntu@<instances IP>
@@ -161,7 +196,8 @@ ssh -i <key_file>.pem ubuntu@<instances IP>
 ```bash
 sudo apt-get -y update && sudo apt-get -y upgrade
 ```
-    At the prompt about `A new version of /boot/grub/menu.lst` select `keep the local version currently installed`.
+   - At the GRUB update prompt which reads: `A new version of /boot/grub/menu.lst`, 
+   select: `keep the local version currently installed`.
 4. Install required Ubuntu packages: 
 ```bash
 sudo apt-get install -y nginx python-virtualenv python3-tk git
