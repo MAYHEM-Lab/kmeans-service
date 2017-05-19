@@ -44,19 +44,23 @@ sudo apt-get -y update && sudo apt-get -y upgrade
 ```bash
 sudo apt-get install -y rabbitmq-server
 ```
-5. [Optional] Enable management plugin so you can use web UI available at port `15672`:
+5. Install NTP to sync clock:
+```bash
+sudo apt-get install -y ntp
+```
+6. [Optional] Enable management plugin so you can use web UI available at port `15672`:
 ```bash
 sudo rabbitmq-plugins enable rabbitmq_management
 sudo service rabbitmq-server restart
 ```
-6. Create users:
+7. Create users:
 ```bash
 sudo rabbitmqctl add_user admin <password>
 sudo rabbitmqctl set_user_tags admin administrator
 sudo rabbitmqctl add_user kmeans <password>
 sudo rabbitmqctl set_permissions -p / kmeans ".*" ".*" ".*"
 ```
-7. Restart RabbitMQ:
+8. Restart RabbitMQ:
 ```bash
 sudo service rabbitmq-server restart
 ```
@@ -72,14 +76,20 @@ ssh -i <key_file>.pem ubuntu@<instances IP>
 ```bash
 sudo apt-get -y update && sudo apt-get -y upgrade
 ```
-4. Install MongoDB (official guide [here](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-ubuntu/)):
+   - At the GRUB update prompt which reads: `A new version of /boot/grub/menu.lst`, 
+   select: `keep the local version currently installed`.
+4. Install NTP to sync clock:
+```bash
+sudo apt-get install -y ntp
+```
+5. Install MongoDB (official guide [here](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-ubuntu/)):
 ```bash
 sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14518585931BC711F9BA15703C6
 echo "deb [ arch=amd64 ] http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/3.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.4.list
 sudo apt-get update
 sudo apt-get install -y mongodb-org
 ```
-5. Setup users:
+6. Setup users:
 ```bash
 mongo
 > use admin
@@ -88,7 +98,7 @@ mongo
 > db.createUser({ user: "kmeans", pwd: "<password>", roles: [{ role: "readWrite", db: "kmeansservice" }]})
 > exit
 ```
-6. Enable authorization:
+7. Enable authorization:
     - Open up `mongod.conf`
      ```bash
     sudo vi /etc/mongod.conf
@@ -101,7 +111,7 @@ mongo
     security:
       authorization: enabled
     ```
-7. Run MongoDB:
+8. Run MongoDB:
 ```bash
 sudo service mongod restart
 ```
@@ -120,22 +130,26 @@ sudo apt-get -y update && sudo apt-get -y upgrade
 ```
    - At the GRUB update prompt which reads: `A new version of /boot/grub/menu.lst`, 
    select: `keep the local version currently installed`.
-4. Install required packages: 
+4. Install NTP to sync clock:
+```bash
+sudo apt-get install -y ntp
+```
+5. Install required packages: 
 ```bash
 sudo apt-get install -y python-virtualenv python3-tk git
 ```
-5. Clone the repo: 
+6. Clone the repo: 
 ```bash
 git clone https://github.com/MAYHEM-Lab/kmeans-service.git
 ```
-6. Provide AWS credentials:
+7. Provide AWS credentials:
 ```bash
 mkdir ~/.aws
 cd ~/.aws/
 echo -e "[default]\nregion = us-west-1" > config
 echo -e "[default]\naws_access_key_id = <add key id>\naws_secret_access_key = <add key>" > credentials
 ```
-7. Install required Python packages:
+8. Install required Python packages:
 ```bash
 cd ~/kmeans-service/site
 virtualenv venv --python=python3
@@ -143,16 +157,16 @@ source venv/bin/activate
 pip install pip --upgrade
 pip install -r requirements.txt
 ```
-8. Configure worker service:
+9. Configure worker service:
 ```bash
 sudo cp /home/ubuntu/kmeans-service/site/worker.conf /etc/init/worker.conf
 ```
-9. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
+10. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
 ```
 CELERY_BROKER = 'amqp://kmeans:<password>@<RabbitMQ-IP>:5672//'
 MONGO_URI = 'mongodb://kmeans:<password@<MongoDB-IP>:27017/kmeansservice'
 ```
-10. Run the server:  
+11. Run the server:  
 ```bash
 sudo service worker start
 ```
@@ -170,22 +184,26 @@ sudo apt-get -y update && sudo apt-get -y upgrade
 ```
    - At the GRUB update prompt which reads: `A new version of /boot/grub/menu.lst`, 
    select: `keep the local version currently installed`.
-4. Install required Ubuntu packages: 
+4. Install NTP to sync clock:
+```bash
+sudo apt-get install -y ntp
+```
+5. Install required Ubuntu packages: 
 ```bash
 sudo apt-get install -y nginx python-virtualenv python3-tk git
 ```
-5. Clone this repo: 
+6. Clone this repo: 
 ```bash
 git clone https://github.com/MAYHEM-Lab/kmeans-service.git
 ```
-6. Provide AWS credentials:
+7. Provide AWS credentials:
 ```bash
 mkdir ~/.aws
 cd ~/.aws/
 echo -e "[default]\nregion = us-west-1" > config
 echo -e "[default]\naws_access_key_id = <add key id>\naws_secret_access_key = <add key>" > credentials
 ```
-7. Install required Python packages:
+8. Install required Python packages:
 ```bash
 cd ~/kmeans-service/site
 virtualenv venv --python=python3
@@ -193,40 +211,66 @@ source venv/bin/activate
 pip install pip --upgrade
 pip install -r requirements.txt
 ```
-8. Configure NGINX:
+9. Configure NGINX:
 ```bash
 sudo /etc/init.d/nginx start
 sudo rm /etc/nginx/sites-enabled/default
-sudo cp frontend_nginx_config /etc/nginx/sites-available/kmeans_frontend
+sudo cp nginx.conf /etc/nginx/sites-available/kmeans_frontend
 sudo ln -s /etc/nginx/sites-available/kmeans_frontend /etc/nginx/sites-enabled/kmeans_frontend
 sudo /etc/init.d/nginx restart
 ```
-9. Create directory for logs:
+10. Create directory for logs:
 ```bash
 mkdir /home/ubuntu/logs
 mkdir /home/ubuntu/logs/gunicorn
 touch /home/ubuntu/logs/gunicorn/error.log
 ```
-10. Configure frontend service:
+11. Configure frontend service:
 ```bash
 sudo cp /home/ubuntu/kmeans-service/site/frontend.conf /etc/init/frontend.conf
 ```
-11. Generate a secret key for the Flask server:
+12. Generate a secret key for the Flask server:
 ```bash
 python
 >>> import os
 >>> os.urandom(24)
 '\xcf6\x16\xac?\xdb\x0c\x1fb\x01p;\xa1\xf2/\x19\x8e\xcd\xfc\x07\xc9\xfd\x82\xf4'
 ```
-12. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
+13. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
 ```
 FLASK_SECRET_KEY = <secret key generted in 10.>
 CELERY_BROKER = 'amqp://kmeans:<password>@<RabbitMQ-IP>:5672//'
 MONGO_URI = 'mongodb://kmeans:<password@<MongoDB-IP>:27017/kmeansservice'
 ```
-13. Run the server:  
+14. Run the server:  
 ```bash
 sudo service frontend start
 ```
 
+## Image Creation
+1. Prepare instance:
+```bash
+sudo service worker stop
+sudo rm /var/log/upstart/worker.log 
+sudo rm /etc/init/worker.conf
+sudo service frontend stop
+sudo rm /etc/init/frontend.conf
+sudo rm -rf /home/ubuntu/logs/
+sudo apt-get update; sudo apt-get -y upgrade; sudo apt-get -y dist-upgrade; sudo apt-get -y autoremove
+sudo apt-get -y install tzdata ntp zip unzip curl wget cvs git python-pip build-essential
+dpkg-reconfigure tzdata
+sudo rm -f /etc/udev/rules.d/70*-net.rules
+sudo rm -rf /root/linux-rootfs-resize*
+sudo rm -rf /root/euca2ools*
+sudo rm -rf /var/lib/cloud/instance /var/lib/cloud/instances/i*
+rm -f ~/.bash_history
+```
+2. Create the image using the [Aristole web console](https://console.aristotle.ucsb.edu) or Euca2ools.
 
+## Create Auto-Scaled Instances
+User Data File for Worker
+```bash
+#!/bin/bash
+sudo cp /home/ubuntu/kmeans-service/site/worker.conf /etc/init/worker.conf
+sudo service worker start
+``
