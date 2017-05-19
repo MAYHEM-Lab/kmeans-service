@@ -87,6 +87,7 @@ def run_kmeans(data, n_clusters, covar_type, covar_tied, n_init):
 @app.task
 def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, columns, scale):
     try:
+        print('job_id:{}, task_id:{}'.format(job_id, task_id))
         start_time = time.time()
         start_read_time = time.time()
         data = s3_to_df(s3_file_key)
@@ -97,7 +98,6 @@ def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, c
         if scale:
             data = preprocessing.scale(data)
         aic, bic, labels = run_kmeans(data, k, covar_type, covar_tied, n_init)
-        print('job_id:{}, bic:{}'.format(job_id, bic))
         elapsed_processing_time = time.time() - start_processing_time
 
         elapsed_time = time.time() - start_time
