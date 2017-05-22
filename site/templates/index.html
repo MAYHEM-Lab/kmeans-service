@@ -146,26 +146,23 @@
 <div class="row" style="text-align:center">
   <div class="col-md-4">
     <p class="lead">Normal
-    <img src="{{url_for('static', filename='images/normal.png')}}" class="img-fluid float-left">
+    <img src="{{url_for('static', filename='images/normal.png')}}" style="height: 180px;">
     </p>
-    <!--<p class="text-muted">Three clusters of normally distributed data.-->
-    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=0)}}" role="button">View Report »</a></p>
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id='592318af46b7fe1f542b6315')}}" role="button">View Report »</a></p>
     <p></p>
   </div>
   <div class="col-md-4">
     <p class="lead">Skewed 1
-    <img src="{{url_for('static', filename='images/skewed1.png')}}" class="img-fluid float-left">
+    <img src="{{url_for('static', filename='images/skewed1.png')}}" style="height:180px;">
     </p>
-    <!--<p class="text-muted">Three clusters of skewed data.-->
-    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=1)}}" role="button">View Report »</a></p>
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id='592318d646b7fe1f542b6316')}}" role="button">View Report »</a></p>
     <p></p>
   </div>
   <div class="col-md-4">
     <p class="lead">Skewed 2
-    <img src="{{url_for('static', filename='images/skewed2.png')}}" class="img-fluid float-left">
+    <img src="{{url_for('static', filename='images/skewed2.png')}}" style="height:180px;">
     </p>
-    <!--<p class="text-muted">Three clusters of skewed data.-->
-    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=2)}}" role="button">View Report »</a></p>
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id='592318f646b7fe1f542b6317')}}" role="button">View Report »</a></p>
     <p></p>
   </div>
 </div>
@@ -173,27 +170,48 @@
 <div class="row" style="text-align:center">
   <div class="col-md-4">
     <p class="lead">Skewed 3
-    <img src="{{url_for('static', filename='images/skewed3.png')}}" class="img-fluid float-left">
+    <img src="{{url_for('static', filename='images/skewed3.png')}}" style="height:180px;">
     </p>
-    <!--<p class="text-muted">Three clusters of skewed data.-->
-    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=3)}}" role="button">View Report »</a></p>
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id='5923192946b7fe1f542b6318')}}" role="button">View Report »</a></p>
     <p></p>
   </div>
   <div class="col-md-4">
     <p class="lead">Skewed 4
-    <img src="{{url_for('static', filename='images/skewed4.png')}}" class="img-fluid float-left">
+    <img src="{{url_for('static', filename='images/skewed4.png')}}" style="height:180px;">
     </p>
-    <!--<p class="text-muted">Three clusters of skewed data.-->
-    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=4)}}" role="button">View Report »</a></p>
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id='5923194046b7fe1f542b6319')}}" role="button">View Report »</a></p>
     <p></p>
   </div>
   <div class="col-md-4">
     <p class="lead">Skewed 5
-    <img src="{{url_for('static', filename='images/skewed5.png')}}" class="img-fluid float-left">
+    <img src="{{url_for('static', filename='images/skewed5.png')}}" style="height:180px;">
     </p>
-    <!--<p class="text-muted">Three clusters of skewed data.-->
-    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=5)}}" role="button">View Report »</a></p>
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id='5923195646b7fe1f542b631a')}}" role="button">View Report »</a></p>
     <p></p>
+  </div>
+</div>
+
+<div class="row" style="text-align:center">
+  <div class="col-md-4">
+    <p class="lead">Overlap 1
+    <img src="{{url_for('static', filename='images/overlap1.png')}}" style="height:180px;">
+    </p>
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id='5923196946b7fe1f542b631b')}}" role="button">View Report »</a></p>
+    <p></p>
+  </div>
+  <div class="col-md-4">
+    <p class="lead">Overlap 2
+    <img src="{{url_for('static', filename='images/overlap2.png')}}" style="height:180px;">
+    </p>
+    <p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id='5923198146b7fe1f542b631c')}}" role="button">View Report »</a></p>
+    <p></p>
+  </div>
+  <div class="col-md-4">
+    <!--<p class="lead">-->
+    <!--<img src="{{url_for('static', filename='images/')}}" style="height:180px;">-->
+    <!--</p>-->
+    <!--<p><a class="btn btn-secondary btn-sm" href="{{url_for('report', job_id=5)}}" role="button">View Report »</a></p>-->
+    <!--<p></p>-->
   </div>
 </div>
 {% endblock %}
