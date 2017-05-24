@@ -130,8 +130,15 @@ def report(job_id=None):
     columns = list(data.columns)
     spatial_columns = [c for c in columns if c.lower() in SPATIAL_COLUMNS][:2]
 
+    covar_type_tied_k = {}
+    for covar_type in covar_types:
+        covar_type_tied_k[covar_type.capitalize()] = {}
+
+    for covar_type, covar_tied, k in zip(covar_types, covar_tieds, ks):
+        covar_type_tied_k[covar_type.capitalize()][['Untied', 'Tied'][covar_tied]] = k
+
     return render_template('report.html', job_id=job_id, job=job, min_members=min_members,
-                           covar_type_tied_k=zip(covar_types, covar_tieds, ks), columns=columns,
+                           covar_type_tied_k=covar_type_tied_k, columns=columns,
                            viz_columns=viz_columns, spatial_columns=spatial_columns,
                            start_time_date=start_time_date, start_time_clock=start_time_clock)
 

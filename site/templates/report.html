@@ -8,20 +8,30 @@
     <br>n_exp: {{job.n_experiments}}. max_k: {{job.max_k}}. n_tasks: {{job.n_tasks}}. scale: {{job.scale}}.
   </p>
   <p class="lead">Recommended number of clusters based on the best (highest) BIC score:</p>
-  <table class="table table-hover">
-    <thead>
-      <tr>
-        <th>Covariance</th>
-        <th>Num. of Clusters</th>
-      </tr>
-    </thead>
+  <table class="table table-bordered">
     <tbody>
-      {% for covar_type, covar_tied, k in covar_type_tied_k %}
       <tr>
-        <td>{{covar_type|capitalize}}-{% if covar_tied %}Tied{% else %}Untied{% endif%}</td>
-        <td>{{k}}</td>
+        <td>
+          Full-Tied: {{covar_type_tied_k['Full']['Tied']}}
+        </td>
+        <td>
+          Diag-Tied: {{covar_type_tied_k['Diag']['Tied']}}
+        </td>
+        <td>
+          Spher-Tied: {{covar_type_tied_k['Spher']['Tied']}}
+        </td>
       </tr>
-      {% endfor %}
+      <tr>
+        <td>
+          Full-Untied: {{covar_type_tied_k['Full']['Untied']}}
+        </td>
+        <td>
+          Diag-Untied: {{covar_type_tied_k['Diag']['Untied']}}
+        </td>
+        <td>
+          Spher-Untied: {{covar_type_tied_k['Spher']['Untied']}}
+        </td>
+      </tr>
     </tbody>
   </table>
   <p>
