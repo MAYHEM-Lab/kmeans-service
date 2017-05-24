@@ -10,28 +10,21 @@
   <p class="lead">Recommended number of clusters based on the best (highest) BIC score:</p>
   <table class="table table-bordered">
     <tbody>
-      <tr>
-        <td>
-          Full-Tied: {{covar_type_tied_k['Full']['Tied']}}
-        </td>
-        <td>
-          Diag-Tied: {{covar_type_tied_k['Diag']['Tied']}}
-        </td>
-        <td>
-          Spher-Tied: {{covar_type_tied_k['Spher']['Tied']}}
-        </td>
+    {% for covar_tied in ['Tied', 'Untied'] %}
+    <tr>
+      {% for covar_type in ['Full', 'Diag', 'Spher'] %}
+      <td>
+        Full-Tied: {{covar_type_tied_k[covar_type][covar_tied]}}
+        <a href="{{url_for('download_labels', job_id=job_id, covar_type=covar_type,
+        covar_tied=covar_tied, k=covar_type_tied_k[covar_type][covar_tied])}}">
+          <button class="btn btn-secondary btn-sm pull-right">
+            <i class="fa fa-download"></i>
+          </button>
+        </a>
+      </td>
+    {% endfor %}
       </tr>
-      <tr>
-        <td>
-          Full-Untied: {{covar_type_tied_k['Full']['Untied']}}
-        </td>
-        <td>
-          Diag-Untied: {{covar_type_tied_k['Diag']['Untied']}}
-        </td>
-        <td>
-          Spher-Untied: {{covar_type_tied_k['Spher']['Untied']}}
-        </td>
-      </tr>
+    {% endfor %}
     </tbody>
   </table>
   <p>

@@ -54,11 +54,19 @@ def mongo_get_task(job_id, task_id):
     response = mongo.db.tasks.find_one(key)
     return response
 
+
 def mongo_no_context_get_task(job_id, task_id):
     client = MongoClient(MONGO_URI)
     db = client[MONGO_DBNAME]
     key = dict(job_id=job_id, task_id=task_id)
     response = db.tasks.find_one(key)
+    return response
+
+
+def mongo_get_task_by_args(job_id, covar_type, covar_tied, k):
+    key = dict(job_id=job_id, covar_type=covar_type, covar_tied=covar_tied, k=k)
+    print(key)
+    response = mongo.db.tasks.find_one(key)
     return response
 
 
