@@ -73,17 +73,12 @@ def status(job_id=None):
             return render_template('index.html')
 
         job = mongo_get_job(job_id)
-        n_tasks = job['n_tasks']
-        filename = job['filename']
-        columns = job['columns']
-        scale = job.get('scale', False)
-
         tasks = mongo_get_tasks(job_id)
-        stats = task_stats(n_tasks, tasks)
+        stats = task_stats(job['n_tasks'], tasks)
         start_time_date, start_time_clock = format_date_time(job['start_time'])
 
-        return render_template('status.html', job_id=job_id, stats=stats, tasks=tasks, filename=filename, scale=scale,
-                               columns=columns, start_time_date=start_time_date, start_time_clock=start_time_clock)
+        return render_template('status.html', job_id=job_id, stats=stats, tasks=tasks, job=job,
+                               start_time_date=start_time_date, start_time_clock=start_time_clock)
 
 
 @app.route('/report/', methods=['GET', 'POST'])
@@ -125,24 +120,19 @@ def report(job_id=None):
 
     covar_types, covar_tieds, ks, labels = tasks_to_best_results(tasks)
 
-    filename = job['filename']
-    cluster_columns = job['columns']
-    s3_file_key = job['s3_file_key']
-    scale = job.get('scale', False)
-
     if x_axis is None or y_axis is None:
         # Visualize the first two columns that are not on the exclude list
         viz_columns = [c for c in job['columns'] if c.lower() not in EXCLUDE_COLUMNS][:2]
     else:
         viz_columns = [x_axis, y_axis]
 
-    data = s3_to_df(s3_file_key)
+    data = s3_to_df(job['s3_file_key'])
     columns = list(data.columns)
     spatial_columns = [c for c in columns if c.lower() in SPATIAL_COLUMNS][:2]
 
-    return render_template('report.html', job_id=job_id, filename=filename, scale=scale, min_members=min_members,
+    return render_template('report.html', job_id=job_id, job=job, min_members=min_members,
                            covar_type_tied_k=zip(covar_types, covar_tieds, ks), columns=columns,
-                           cluster_columns=cluster_columns, viz_columns=viz_columns, spatial_columns=spatial_columns,
+                           viz_columns=viz_columns, spatial_columns=spatial_columns,
                            start_time_date=start_time_date, start_time_clock=start_time_clock)
 
 

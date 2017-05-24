@@ -19,7 +19,8 @@
   <h1>Status for Job ID: {{job_id}}</h1>
   <p class="text-muted">
     Submitted at {{start_time_clock}} on {{start_time_date}} (UTC)
-    <br>File: "{{filename}}". Columns: "{{columns|join('", "')}}". Scale: "{{scale}}".
+    <br> File: "{{job.filename}}". Columns used: [{{job.columns|join(', ')}}].
+    <br>n_exp: {{job.n_experiments}}. max_k: {{job.max_k}}. n_tasks: {{job.n_tasks}}. scale: {{job.scale}}.
   </p>
   <p class="lead">Task completion progress:</p>
   <div class="progress">
