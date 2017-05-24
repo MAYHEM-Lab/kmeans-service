@@ -14,7 +14,7 @@
     <tr>
       {% for covar_type in ['Full', 'Diag', 'Spher'] %}
       <td>
-        Full-Tied: {{covar_type_tied_k[covar_type][covar_tied]}}
+        {{covar_type}}-{{covar_tied}}: {{covar_type_tied_k[covar_type][covar_tied]}}
         <a href="{{url_for('download_labels', job_id=job_id, covar_type=covar_type,
         covar_tied=covar_tied, k=covar_type_tied_k[covar_type][covar_tied])}}">
           <button class="btn btn-secondary btn-sm pull-right">
