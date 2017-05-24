@@ -30,7 +30,7 @@ from werkzeug.utils import secure_filename
 
 from utils import format_date_time
 from utils import tasks_to_best_results, task_stats, filter_by_min_members
-from utils import plot_cluster_fig, plot_aic_bic_fig, plot_count_fig
+from utils import plot_cluster_fig, plot_aic_bic_fig, plot_count_fig, plot_correlation_fig
 from utils import fig_to_png
 from utils import allowed_file, upload_to_s3, s3_to_df
 
@@ -198,6 +198,24 @@ def plot_cluster():
     fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks), show_ticks)
     cluster_plot = fig_to_png(fig)
     response = make_response(cluster_plot.getvalue())
+    response.mimetype = 'image/png'
+    return response
+
+
+@app.route('/plot/correlation')
+@app.route('/plot/correlation/')
+def plot_correlation():
+    job_id = request.args.get('job_id')
+
+    if job_id is None:
+        return None
+
+    job = mongo_get_job(job_id)
+    s3_file_key = job['s3_file_key']
+    data = s3_to_df(s3_file_key)
+    fig = plot_correlation_fig(data)
+    correlation_plot = fig_to_png(fig)
+    response = make_response(correlation_plot.getvalue())
     response.mimetype = 'image/png'
     return response
 

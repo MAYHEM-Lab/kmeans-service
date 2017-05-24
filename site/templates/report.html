@@ -54,6 +54,27 @@
   </div>
   <br><br>
 
+  <h3>Correlation Heat Map</h3>
+  <p>
+    A heat map for the correlation between all the features in the dataset is show below:
+  </p>
+  <div id="correlation_plot_loading">
+      <i class="fa fa-spinner fa-pulse fa-fw"></i>
+      <span>Loading Correlation heat map ...</span>
+  </div>
+  <div id="correlation_plot_loading_error" class="alert alert-warning alert-dismissible fade show" role="alert" style="display: none;">
+    <button type="button" class="close" aria-label="Close"
+            onclick="$('#correlation_plot_load_error').hide(); $('#correlation_plot_loading').show();
+            $('#correlation_plot_img').attr('src', $('#correlation_plot_img').attr('src'))">
+      <span class="fa fa-refresh" aria-hidden="true"></span>
+    </button>
+    <strong>Error</strong> loading Correlation heat map.
+  </div>
+  <img id="correlation_plot_img" src="{{url_for('plot_correlation', job_id=job_id)}}" class="img-fluid"
+       onload="$('#correlation_plot_loading').hide();$('#correlation_plot_loading_error').hide();$('#correlation_plot_img').show();"
+  onerror="$('#correlation_plot_img').hide();$('#correlation_plot_loading').hide();$('#correlation_plot_loading_error').show();"/>
+  <br><br>
+
   <h3>Cluster Plots</h3>
   <p>
     Recommended cluster assignments are visualized below using the columns {{viz_columns[0]}} and {{viz_columns[1]}}:
@@ -87,7 +108,7 @@
   </div>
   <div id="cluster_plot_loading">
       <i class="fa fa-spinner fa-pulse fa-fw"></i>
-      <span>Loading Cluster Plots...</span>
+      <span>Loading Cluster Plots ...</span>
   </div>
   <div id="cluster_plot_loading_error" class="alert alert-warning alert-dismissible fade show" role="alert" style="display: none;">
     <button type="button" class="close" aria-label="Close"
@@ -134,7 +155,7 @@
   </p>
   <div id="aic_bic_plot_loading">
     <i class="fa fa-spinner fa-pulse fa-fw"></i>
-    <span>Loading AIC and BIC Plots...</span>
+    <span>Loading AIC and BIC Plots ...</span>
   </div>
   <div id="aic_bic_plot_loading_error" class="alert alert-warning alert-dismissible fade show" role="alert" style="display: none;">
     <button type="button" class="close" aria-label="Close"
@@ -155,7 +176,7 @@
   </p>
   <div id="count_plot_loading">
     <i class="fa fa-spinner fa-pulse fa-fw"></i>
-    <span>Loading Count Plots...</span>
+    <span>Loading Count Plots ...</span>
   </div>
   <div id="count_plot_loading_error" class="alert alert-warning alert-dismissible fade show" role="alert" style="display: none;">
     <button type="button" class="close" aria-label="Close"

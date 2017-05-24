@@ -161,6 +161,15 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k, show_ticks=True):
     return fig
 
 
+def plot_correlation_fig(data):
+    """ Creates a correlation heat map """
+    sns.set(context='talk', style='white')
+    fig = plt.figure()
+    sns.heatmap(data.corr(), vmin=-1, vmax=1)
+    plt.tight_layout()
+    return fig
+
+
 def plot_count_fig(tasks):
     """ Creates a 3x2 plot of the number (count) of data points for each k in each covar. """
     sns.set(context='talk')
