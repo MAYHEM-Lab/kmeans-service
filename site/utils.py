@@ -130,6 +130,7 @@ def plot_aic_bic_fig(tasks):
                        row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True,
                        n_boot=100)
     f.set_titles("{col_name}-{row_name}")
+    f.set_xlabels("Num. of Clusters (k)")
     return f.fig
 
 
