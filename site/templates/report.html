@@ -14,6 +14,8 @@
     <tr>
       {% for covar_type in ['Full', 'Diag', 'Spher'] %}
       <td>
+        {% if covar_type in covar_type_tied_k %}
+        {% if covar_tied in covar_type_tied_k[covar_type] %}
         {{covar_type}}-{{covar_tied}}: {{covar_type_tied_k[covar_type][covar_tied]}}
         <a href="{{url_for('download_labels', job_id=job_id, covar_type=covar_type,
         covar_tied=covar_tied, k=covar_type_tied_k[covar_type][covar_tied])}}">
@@ -21,6 +23,12 @@
             <i class="fa fa-download"></i>
           </button>
         </a>
+        {% else %}
+        {{covar_type}}-{{covar_tied}}: Not available
+        {% endif %}
+        {% else %}
+        {{covar_type}}-{{covar_tied}}: Not available
+        {% endif %}
       </td>
     {% endfor %}
       </tr>
