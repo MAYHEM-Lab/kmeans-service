@@ -98,7 +98,7 @@ mongo
 > db.createUser({ user: "kmeans", pwd: "<password>", roles: [{ role: "readWrite", db: "kmeansservice" }]})
 > exit
 ```
-7. Enable authorization:
+7. Setup config:
     - Open up `mongod.conf`
      ```bash
     sudo vi /etc/mongod.conf
@@ -110,8 +110,17 @@ mongo
     ```
     security:
       authorization: enabled
+    ``` 
+    - Change database path: 
     ```
-8. Run MongoDB:
+      dbPath: /mnt/mongodb
+    ```
+8. Create database directory and set owner:
+```bash
+sudo mkdir /mnt/mongodb
+sudo chown -R mongodb:mongodb /mnt/mongodb
+```
+9. Run MongoDB:
 ```bash
 sudo service mongod restart
 ```
@@ -247,7 +256,8 @@ MONGO_URI = 'mongodb://kmeans:<password@<MongoDB-IP>:27017/kmeansservice'
 sudo service frontend start
 ```
 
-## Image Creation
+## Tips for creating auto-scaling Backend Workers
+### Image Creation
 1. Prepare instance:
 ```bash
 sudo service worker stop
@@ -267,7 +277,7 @@ rm -f ~/.bash_history
 ```
 2. Create the image using the [Aristole web console](https://console.aristotle.ucsb.edu) or Euca2ools.
 
-## Create Auto-Scaled Instances
+### Create Auto-Scaled Instances
 User Data File for Worker
 ```bash
 #!/bin/bash
