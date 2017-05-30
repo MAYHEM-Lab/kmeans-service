@@ -70,6 +70,13 @@ def mongo_get_task_by_args(job_id, covar_type, covar_tied, k):
     return response
 
 
+def mongo_get_tasks_by_args(job_id, covar_type, covar_tied, k):
+    key = dict(job_id=job_id, covar_type=covar_type, covar_tied=covar_tied, k=k)
+    print(key)
+    response = list(mongo.db.tasks.find(key))
+    return response
+
+
 def mongo_add_s3_file_key(job_id, s3_file_key):
     response = mongo.db.jobs.update_one({'_id': ObjectId(job_id)}, {'$set': {'s3_file_key': s3_file_key}})
     return response

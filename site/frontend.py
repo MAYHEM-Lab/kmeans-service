@@ -34,7 +34,7 @@ from utils import plot_cluster_fig, plot_aic_bic_fig, plot_count_fig, plot_corre
 from utils import fig_to_png
 from utils import allowed_file, upload_to_s3, s3_to_df
 
-from database import mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks, mongo_get_task_by_args
+from database import mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks, mongo_get_tasks_by_args
 from database import mongo_add_s3_file_key
 from worker import create_tasks, rerun_task
 from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS, SPATIAL_COLUMNS
@@ -233,14 +233,18 @@ def download_labels():
     if type(covar_tied) != bool:
         covar_tied = covar_tied == 'Tied'
 
+    min_members = int(request.args.get('min_members', None))
+
     if job_id is None:
         return None
 
     job = mongo_get_job(job_id)
     s3_file_key = job['s3_file_key']
     data = s3_to_df(s3_file_key)
-    task = mongo_get_task_by_args(job_id, covar_type, covar_tied, k)
-    data = data.assign(Label=task['labels'])
+    tasks = mongo_get_tasks_by_args(job_id, covar_type, covar_tied, k)
+    if min_members is not None:
+        tasks = filter_by_min_members(tasks, min_members)
+    data = data.assign(Label=tasks[0]['labels'])
     response = make_response(data.to_csv(index=False))
     response.headers["Content-Disposition"] = "attachment; filename={}".format(export_filename)
     response.headers["Content-Type"] = "text/csv"
