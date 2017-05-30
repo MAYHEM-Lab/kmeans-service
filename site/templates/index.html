@@ -256,7 +256,7 @@
             $('#columns').append("<option></option>");
             $('#columns option')[i].text = c;
             $('#columns option')[i].value = c;
-            if($.inArray(c.toLowerCase(), excludeColumns) >= 0){
+            if($.inArray(c.toLowerCase().trim(), excludeColumns) >= 0){
                 $('#columns option')[i].selected = false;
 
             } else {

@@ -122,7 +122,7 @@ def report(job_id=None):
 
     if x_axis is None or y_axis is None:
         # Visualize the first two columns that are not on the exclude list
-        viz_columns = [c for c in job['columns'] if c.lower() not in EXCLUDE_COLUMNS][:2]
+        viz_columns = [c for c in job['columns'] if c.lower().strip() not in EXCLUDE_COLUMNS][:2]
     else:
         viz_columns = [x_axis, y_axis]
 
