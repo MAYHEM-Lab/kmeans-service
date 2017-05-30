@@ -79,7 +79,7 @@
       <div class="form-group row">
         <label for="file" class="col-2 col-form-label">file:</label>
         <div class="col-10">
-          <input type="file" class="form-control-file" id="file" name="file" onchange="parseFile()">
+          <input type="file" class="form-control-file" id="file" name="file" onchange="$('#columns').html('');parseFile();">
           <small id="file_help" class="form-text text-muted">
             Only ".csv" files smaller than 256MB in size are allowed.
             The files must have a header with column names.
