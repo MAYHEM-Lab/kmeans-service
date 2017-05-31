@@ -314,7 +314,7 @@ def rerun():
     n = len(task_ids)
     # print('job_id: {}, task_ids:{}'.format(job_id, task_ids))
     for task_id in task_ids:
-        rerun_task.delay(job_id, task_id)
+        rerun_task(job_id, task_id)
 
     flash('Rerunning {} tasks for job ID "{}"'.format(n, job_id), category='info')
     return redirect(url_for('status', job_id=job_id))
