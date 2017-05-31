@@ -28,7 +28,7 @@ can be auto-scaled behind a load-balancer.
 
 ### Backend
 #### Queue
-1. Create an Ubuntu Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) 
+1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) 
 with the following ports open: `TCP 22`, `TCP 5672` and, optionally, `TCP 15672`.  
 2. Login to the instances:   
 ```bash
@@ -66,7 +66,7 @@ sudo service rabbitmq-server restart
 ```
 
 #### Database
-1. Create an Ubuntu Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster)
+1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster)
   with the following ports open: `TCP 22` and `TCP 27017`.
 2. Login to the instances:   
 ```bash
@@ -127,7 +127,7 @@ sudo service mongod restart
 
 
 #### Worker
-1. Create an Ubuntu Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) 
+1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) 
 with the following port open: `TCP 22`.  
 2. Login to the instances:   
 ```bash
@@ -181,7 +181,7 @@ sudo service worker start
 ```
 
 ### Frontend
-1. Create an Ubuntu Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) 
+1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) 
 with the following ports open: `TCP 22` and `TCP 80`.  
 2. Login to the instances:   
 ```bash
