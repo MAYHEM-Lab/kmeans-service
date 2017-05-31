@@ -75,7 +75,7 @@ def tasks_to_best_results(tasks):
     for row in df['_id']:
         labels += [t['labels'] for t in tasks if t['_id'] == row]
 
-    return df['covar_type'].tolist(), df['covar_tied'].tolist(), df['k'].tolist(), labels
+    return df['covar_type'].tolist(), df['covar_tied'].tolist(), df['k'].tolist(), labels, df['bic_x']
 
 
 def best_covar_type_tied_k(results_df):
@@ -134,7 +134,7 @@ def plot_aic_bic_fig(tasks):
     return f.fig
 
 
-def plot_cluster_fig(data, columns, covar_type_tied_labels_k, show_ticks=True):
+def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics, show_ticks=True):
     """ Creates a 3x2 plot scatter plot using the first two columns """
     sns.set(context='talk', style='white')
     columns = columns[:2]
@@ -147,7 +147,7 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k, show_ticks=True):
     lim_bottom = data[columns[1]].min()
     lim_top = data[columns[1]].max()
 
-    for covar_type, covar_tied, labels, k in covar_type_tied_labels_k:
+    for covar_type, covar_tied, labels, k, bic in covar_type_tied_labels_k_bics:
         plt.subplot(2, 3, placement[covar_type][covar_tied])
         plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow, s=10)
         plt.xlabel(columns[0])
@@ -157,7 +157,7 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k, show_ticks=True):
         if show_ticks is False:
             plt.xticks([])
             plt.yticks([])
-        plt.title('{}-{}, k={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
+        plt.title('{}-{}, k={}\nBIC: {:,.1f}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k, bic))
     plt.tight_layout()
     return fig
 

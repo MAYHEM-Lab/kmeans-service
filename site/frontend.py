@@ -118,7 +118,7 @@ def report(job_id=None):
     tasks = filter_by_min_members(tasks, min_members=min_members)
     start_time_date, start_time_clock = format_date_time(job['start_time'])
 
-    covar_types, covar_tieds, ks, labels = tasks_to_best_results(tasks)
+    covar_types, covar_tieds, ks, labels, bics = tasks_to_best_results(tasks)
 
     if x_axis is None or y_axis is None:
         # Visualize the first two columns that are not on the exclude list
@@ -191,11 +191,11 @@ def plot_cluster():
 
     if min_members is not None:
         tasks = filter_by_min_members(tasks, min_members)
-    covar_types, covar_tieds, ks, labels = tasks_to_best_results(tasks)
+    covar_types, covar_tieds, ks, labels, bics = tasks_to_best_results(tasks)
     s3_file_key = job['s3_file_key']
     viz_columns = [x_axis, y_axis]
     data = s3_to_df(s3_file_key)
-    fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks), show_ticks)
+    fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks, bics), show_ticks)
     cluster_plot = fig_to_png(fig)
     response = make_response(cluster_plot.getvalue())
     response.mimetype = 'image/png'
