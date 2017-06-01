@@ -22,15 +22,38 @@ from flask import make_response
 from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS, SPATIAL_COLUMNS, S3_BUCKET
 
 
-def format_date_time(start_time_str):
-    """ Converts epoch time string to (Date, Time) formatted as ('04 April 2017', '11:01 AM') """
-    start_time = time.localtime(float(start_time_str))
+def format_date_time(epoch_time):
+    """
+    Converts epoch time string to (Date, Time) formatted as ('04 April 2017', '11:01 AM').
+
+    Parameters
+    ----------
+    epoch_time: float
+
+    Returns
+    -------
+    (str, str)
+        (Date, Time) formatted as ('04 April 2017', '11:01 AM')
+    """
+    start_time = time.localtime(float(epoch_time))
     start_time_date = time.strftime("%d %B %Y", start_time)
     start_time_clock = time.strftime("%I:%M %p", start_time)
     return start_time_date, start_time_clock
 
 
 def float_to_str(num):
+    """
+    Convert float to str with 4 decimal places.
+
+    Parameters
+    ----------
+    num: float
+
+    Returns
+    -------
+    str
+
+    """
     return '{:.4f}'.format(num)
 
 
@@ -38,6 +61,19 @@ def float_to_str(num):
 
 
 def filter_dict_list_by_keys(dict_list, keys):
+    """
+    Keep only keys specified in the function parameter `keys`. Does not modify dicts in `dict_list`.
+
+    Parameters
+    ----------
+    dict_list: list(dict)
+    keys: list(str)
+
+    Returns
+    -------
+    list(dict)
+
+    """
     new_dict_list = []
     for d in dict_list:
         new_d = {}
@@ -50,9 +86,21 @@ def filter_dict_list_by_keys(dict_list, keys):
 
 def tasks_to_best_results(tasks):
     """
-    Converts tasks data into a Pandas DataFrame containing best values for k, bic, and labels.
-    Response DF contains 'k', 'covar_type', 'covar_tied', 'bic', 'labels'
+    Finds the best values for k, labels, and BIC for all covar_type and covar_tied. 'Best' corresponds to highest BIC
+    value.
 
+    Parameters
+    ----------
+    tasks: list(dict)
+
+    Returns
+    -------
+    list(str), list(bool), list(int), list(list(int)), list(float)
+        list of covar_type strings
+        list of covar_tied bools
+        list of k values
+        list of labels
+        list of BIC values
     """
     # Filter list of dicts to reduce the size of Pandas DataFrame
     df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied', 'bic', '_id']))
@@ -78,13 +126,32 @@ def tasks_to_best_results(tasks):
     return df['covar_type'].tolist(), df['covar_tied'].tolist(), df['k'].tolist(), labels, df['bic_x']
 
 
-def best_covar_type_tied_k(results_df):
-    """ Converts a Pandas DataFrame that is grouped and sorted by BIC to a list of tuples. """
-    covar_type_tied_k = list(zip(results_df['covar_type'], results_df['covar_tied'], results_df['k']))
-    return covar_type_tied_k
-
-
 def task_stats(n_tasks, tasks):
+    """
+    Find statistics on tasks statuses.
+
+    Parameters
+    ----------
+    n_tasks: int
+        Total number of tasks for a job.
+    tasks: list(dict)
+        List of task objects from the database for the job.
+
+    Returns
+    -------
+    dict
+        Contains:
+            n_tasks: total number of tasks for a job. Sames as the function parameter
+            n_tasks_done: number of tasks marked as 'done'
+            per_done: percentage of all tasks marked as 'done'
+            n_tasks_pending: number of tasks marked as 'pending'
+            per_pending: percentage of all tasks marked as 'pending'
+            n_tasks_error: number of tasks marked as 'error'
+            per_error: percentage of all tasks marked as 'error'
+            n_tasks_submitted: number of tasks entered in the database for the job
+            per_submitted: percentage of all tasks that are in the database for the job
+
+    """
     n_tasks_submitted = len(tasks)
     per_submitted = '{:.0f}'.format(n_tasks_submitted / n_tasks * 100)
     n_tasks_done, n_tasks_pending, n_tasks_error = 0, 0, 0
@@ -107,6 +174,20 @@ def task_stats(n_tasks, tasks):
 
 
 def filter_by_min_members(tasks, min_members=10):
+    """
+    Keep tasks only if they have at least `min_members` points in each cluster. Does not modify `tasks`.
+
+    Parameters
+    ----------
+    tasks: list(dict)
+        List of task objects for a job.
+    min_members: int
+
+    Returns
+    -------
+    list(dict)
+
+    """
     filtered_tasks = []
     for task in tasks:
         if np.all(np.bincount(task['labels']) > min_members):
@@ -118,6 +199,17 @@ def filter_by_min_members(tasks, min_members=10):
 
 
 def plot_aic_bic_fig(tasks):
+    """
+    Creates AIC-BIC plot, as a 2-row x 3-col grid of point plots with 95% confidence intervals.
+
+    Parameters
+    ----------
+    tasks: list(dict)
+
+    Returns
+    -------
+    Matplotlib Figure object
+    """
     sns.set(context='talk')
     # Filter list of dicts to reduce the size of Pandas DataFrame
     df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']))
@@ -135,7 +227,26 @@ def plot_aic_bic_fig(tasks):
 
 
 def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics, show_ticks=True):
-    """ Creates a 3x2 plot scatter plot using the first two columns """
+    """
+    Creates cluster plot for the user data using label assignment provided, as a 2-row x 3-col scatter plot.
+
+    Parameters
+    ----------
+    data: Pandas DataFrame
+        User data file as a Pandas DataFrame
+    columns: list(str)
+        Column numbers from `data` to use as the x and y axes for the plot. Only the first two elements of the list
+        are used.
+    covar_type_tied_labels_k_bics: list((str, bool, list(int), int, float))
+        [(covar_type, covar_tied, labels, k, bic), ... ]
+    show_ticks: bool
+        Show or hide tick marks on x and y axes.
+
+    Returns
+    -------
+    Matplotlib Figure object.
+
+    """
     sns.set(context='talk', style='white')
     columns = columns[:2]
 
@@ -163,7 +274,18 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics, show_ticks=Tr
 
 
 def plot_correlation_fig(data):
-    """ Creates a correlation heat map """
+    """
+    Creates a correlation heat map for all columns in user data.
+
+    Parameters
+    ----------
+    data: Pandas DataFrame
+        User data file as a Pandas DataFrame
+
+    Returns
+    -------
+    Matplotlib Figure object.
+    """
     sns.set(context='talk', style='white')
     fig = plt.figure()
     sns.heatmap(data.corr(), vmin=-1, vmax=1)
@@ -172,7 +294,17 @@ def plot_correlation_fig(data):
 
 
 def plot_count_fig(tasks):
-    """ Creates a 3x2 plot of the number (count) of data points for each k in each covar. """
+    """
+    Create count plot, as a 2-row x 3-col bar plot of data points for each k in each covar.
+
+    Parameters
+    ----------
+    tasks: list(dict)
+
+    Returns
+    -------
+    Matplotlib Figure object.
+    """
     sns.set(context='talk')
     df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied']))
     df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]

@@ -28,10 +28,8 @@ from flask import request, render_template, redirect, url_for, flash, make_respo
 from flask_app import app
 from werkzeug.utils import secure_filename
 
-from utils import format_date_time
-from utils import tasks_to_best_results, task_stats, filter_by_min_members
-from utils import plot_cluster_fig, plot_aic_bic_fig, plot_count_fig, plot_correlation_fig
-from utils import fig_to_png
+from utils import format_date_time, tasks_to_best_results, task_stats, filter_by_min_members
+from utils import plot_cluster_fig, plot_aic_bic_fig, plot_count_fig, plot_correlation_fig, fig_to_png
 from utils import allowed_file, upload_to_s3, s3_to_df
 
 from database import mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks, mongo_get_tasks_by_args
@@ -40,19 +38,32 @@ from worker import create_tasks, rerun_task
 from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS, SPATIAL_COLUMNS
 
 
-""" Flask routes """
-
-
 @app.route('/', methods=['GET'])
 def index():
+    """
+    Home page
+
+    Returns
+    -------
+    html
+    """
     return render_template('index.html', exclude_columns=EXCLUDE_COLUMNS)
 
 
 @app.route('/status/', methods=['GET', 'POST'])
 @app.route('/status/<job_id>')
 def status(job_id=None):
-    """ Pull information on all tasks for a job from DynamoDB and render as a table """
+    """
+    Pull information on all tasks for a job from MongoDB and render as a table
 
+    Parameters
+    ----------
+    job_id: str
+
+    Returns
+    -------
+    html
+    """
     if request.method == 'POST':
         job_id = request.form['job_id']
         if job_id:
@@ -60,10 +71,8 @@ def status(job_id=None):
         else:
             flash("Invalid job ID!", 'danger')
             return render_template('index.html')
-
     if job_id is None:
         job_id = request.args.get('job_id', None)
-
     if job_id is None:
         flash('Job ID invalid!'.format(job_id), category='danger')
         return render_template('index.html')
@@ -72,11 +81,11 @@ def status(job_id=None):
             flash('Job ID {} not found!'.format(job_id), category='danger')
             return render_template('index.html')
 
+        # job_id is valid
         job = mongo_get_job(job_id)
         tasks = mongo_get_tasks(job_id)
         stats = task_stats(job['n_tasks'], tasks)
         start_time_date, start_time_clock = format_date_time(job['start_time'])
-
         return render_template('status.html', job_id=job_id, stats=stats, tasks=tasks, job=job,
                                start_time_date=start_time_date, start_time_clock=start_time_clock)
 
@@ -84,6 +93,23 @@ def status(job_id=None):
 @app.route('/report/', methods=['GET', 'POST'])
 @app.route('/report/<job_id>')
 def report(job_id=None):
+    """
+    Generate report for a job
+
+    Parameters
+    ----------
+    job_id: str
+    x_axis: str
+        Name of column from user dataset to be used for the x axis of the plot
+    y_axis: str
+        Name of column from user dataset to be used for the y axis of the plot
+    min_members: int, optional
+        Minimum number of members required in all clusters in an experiment to consider the experiment for the report.
+
+    Returns
+    -------
+    html
+    """
     if request.method == 'POST':
         job_id = request.form.get('job_id')
         x_axis = request.form.get('x_axis', None)
@@ -102,15 +128,16 @@ def report(job_id=None):
         flash('Job ID {} not found!'.format(job_id), category='danger')
         return render_template('index.html')
 
+    # job_id is valid
     job = mongo_get_job(job_id)
     n_tasks = job['n_tasks']
     tasks = mongo_get_tasks(job_id)
     n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
-
     if n_tasks != n_tasks_done:
         flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
         return redirect(url_for('status', job_id=job_id))
 
+    # all tasks are done
     if min_members is None:
         min_members = 10
     else:
@@ -130,6 +157,7 @@ def report(job_id=None):
     columns = list(data.columns)
     spatial_columns = [c for c in columns if c.lower() in SPATIAL_COLUMNS][:2]
 
+    # recommendations for all covariance types
     covar_type_tied_k = {}
     for covar_type in covar_types:
         covar_type_tied_k[covar_type.capitalize()] = {}
@@ -145,6 +173,19 @@ def report(job_id=None):
 
 @app.route('/plot/aic_bic/')
 def plot_aic_bic():
+    """
+    Generate the AIC-BIC plot as a PNG
+
+    Parameters
+    ----------
+    job_id: str
+    min_members: int, optional
+        Minimum number of members required in all clusters in an experiment to consider the experiment for the report.
+
+    Returns
+    -------
+    image/png
+    """
     job_id = request.args.get('job_id', None)
     min_members = int(request.args.get('min_members', None))
     if job_id is None:
@@ -161,6 +202,19 @@ def plot_aic_bic():
 
 @app.route('/plot/count/')
 def plot_count():
+    """
+    Generate the Count plot as a PNG
+
+    Parameters
+    ----------
+    job_id: str
+    min_members: int, optional
+        Minimum number of members required in all clusters in an experiment to consider the experiment for the report.
+
+    Returns
+    -------
+    image/png
+    """
     job_id = request.args.get('job_id', None)
     min_members = int(request.args.get('min_members', None))
     if job_id is None:
@@ -178,6 +232,21 @@ def plot_count():
 @app.route('/plot/cluster')
 @app.route('/plot/cluster/')
 def plot_cluster():
+    """
+    Generate the Cluster plot as a PNG
+
+    Parameters
+    ----------
+    job_id: str
+    x_axis: str
+        Name of column from user dataset to be used for the x axis of the plot
+    y_axis: str
+        Name of column from user dataset to be used for the y axis of the plot
+
+    Returns
+    -------
+    image/png
+    """
     job_id = request.args.get('job_id')
     x_axis = request.args.get('x_axis')
     y_axis = request.args.get('y_axis')
@@ -205,11 +274,21 @@ def plot_cluster():
 @app.route('/plot/correlation')
 @app.route('/plot/correlation/')
 def plot_correlation():
-    job_id = request.args.get('job_id')
+    """
+    Generate the Correlation heat map as a PNG
 
+    Parameters
+    ----------
+    job_id: str
+
+    Returns
+    -------
+    image/png
+    """
+
+    job_id = request.args.get('job_id')
     if job_id is None:
         return None
-
     job = mongo_get_job(job_id)
     s3_file_key = job['s3_file_key']
     data = s3_to_df(s3_file_key)
@@ -223,6 +302,23 @@ def plot_correlation():
 @app.route('/csv/labels')
 @app.route('/csv/labels/')
 def download_labels():
+    """
+    Generate CSV file for label assignment
+
+    Parameters
+    ----------
+    job_id: str
+    covar_type: str
+    covar_tied: bool
+    k: int
+    min_members: int, optional
+        Minimum number of members required in all clusters in an experiment to consider the experiment for the report.
+
+    Returns
+    -------
+    text/csv file
+    """
+
     job_id = request.args.get('job_id')
     covar_type = request.args.get('covar_type')
     covar_tied = request.args.get('covar_tied')
@@ -253,6 +349,24 @@ def download_labels():
 
 @app.route('/submit', methods=['GET', 'POST'])
 def submit():
+    """
+    Endpoint for HTML form for new job creation. Uploads user file to S3, creates job entry in database, and triggers async creations
+    of all tasks needed for the job.
+
+    Parameters
+    ----------
+    file: html file upload
+    n_init: int
+    n_experiments: int
+    max_k: int
+    covars: list(str)
+    columns: list(str)
+    scale: bool
+
+    Returns
+    -------
+    redirects to index
+    """
     if request.method == 'POST':
         # Ensure that file is part of the post
         if 'file' not in request.files:
@@ -301,18 +415,28 @@ def submit():
             filename = secure_filename(file.filename)
             flash('Incorrect file extension for file "{}"!'.format(filename), category='danger')
             return redirect(url_for('index'))
-
     else:
         return redirect(request.url)
 
 
 @app.route('/rerun/', methods=['POST'])
 def rerun():
+    """
+    Triggers rerun of tasks.
+
+    Parameters
+    ----------
+    job_id: str
+    task_ids: list(int)
+
+    Returns
+    -------
+    redirects to status page.
+    """
     job_id = request.form.get('job_id')
     task_ids = request.form.get('task_ids')
     task_ids = [int(i) for i in task_ids.split(',')]
     n = len(task_ids)
-    # print('job_id: {}, task_ids:{}'.format(job_id, task_ids))
     for task_id in task_ids:
         rerun_task(job_id, task_id)
 

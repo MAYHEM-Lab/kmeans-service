@@ -3,8 +3,6 @@ Initialize and configure Flask app here
 
 Author: Angad Gill
 """
-import os
-
 from flask import Flask
 from flask_pymongo import PyMongo
 
@@ -15,6 +13,5 @@ app = Flask(__name__)
 app.secret_key = FLASK_SECRET_KEY
 app.config['MONGO_DBNAME'] = MONGO_DBNAME
 app.config['MONGO_URI'] = MONGO_URI
-
-mongo = PyMongo(app)
+mongo = PyMongo(app)  # context object for MongoDB
 
