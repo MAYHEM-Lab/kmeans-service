@@ -1,14 +1,14 @@
 <!-- index.html-->
 
 {% extends "base.html" %}
-{% block title %}K-Means - Home{% endblock %}
+{% block title %}Centaurus - Home{% endblock %}
 {% block head %}
 <script src="{{url_for('static', filename='js/papaparse.min.js')}}"></script>
 {% endblock %}
 {% block body %}
 
 <div class="jumbotron">
-  <h1 class="display-4">Cluster your data.</h1>
+  <h1 class="display-4">K-Means as a Service</h1>
   <p class="lead">
     This service analyzes data to determine the best number of clusters for it, using K-Means algorithm with
     Mahalanois distance and Bayesian Information Criterion.
