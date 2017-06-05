@@ -1,4 +1,4 @@
-# K-Means Service
+# Centaurus: K-Means as a Service
 This is a repository for a scalable web service that analyzes data to determine the best number of clusters for it, 
 using K-Means algorithm with Mahalanois distance and Bayesian Information Criterion.
 
@@ -24,7 +24,6 @@ The purpose of the _Frontend_ is to do the following:
 The purpose of the _Backend Worker_ is to do the following: 
 1. Run the analysis based on the data and parameters provided in the Backedn Queue.  
 2. When done, update the Backend Database with the analysis results.  
-
 
 ## Installation  
 See `site/README.md`.
