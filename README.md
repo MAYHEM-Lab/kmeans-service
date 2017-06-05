@@ -9,7 +9,7 @@ The system consists of a total of five services:
 - _Frontend_: The frontend is provided by a Python Flask server (`site/frontend.py`) paired with Gunicorn and NGINX. 
 - _Backend_: There are two options for the backend:  
   1. Worker: Python Celery to perform all analysis tasks asynchronously (`site/worker.py`).
-  2. Queue: RabbitMQ to broker messages between the Frontend and Workers.
+  2. Queue: RabbitMQ as a message broker between the Frontend and Workers.
   3. Database: MongoDB to store all parameters for analyses and results of all tasks associated with each analysis.
   4. Storage: Amazon S3 to store the data file uploaded by users.
 

@@ -28,7 +28,8 @@ def format_date_time(epoch_time):
 
     Parameters
     ----------
-    epoch_time: float
+    epoch_time: str
+        Epoch time converted to str.
 
     Returns
     -------
@@ -380,15 +381,59 @@ def png_for_template(png):
 
 
 def allowed_file(filename):
+    """
+    Checks filename to figure out if the file extension is in ALLOWED_EXTENSIONS global variable.
+
+    Parameters
+    ----------
+    filename: str
+        Name of the file with the extension, example: file.csv
+
+    Returns
+    -------
+    bool
+        True if file extension is allowed. False otherwise.
+    """
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 def generate_s3_file_key(job_id, filename):
+    """
+    Generates a unique key for use in Amazon S3.
+
+    Parameters
+    ----------
+    job_id: str
+    filename: str
+        Name of the file with the extension, example: file.csv
+
+    Returns
+    -------
+    str
+        file key for Amazon S3
+
+    """
     return '{}/{}/{}'.format(UPLOAD_FOLDER, job_id, filename)
 
 
 def upload_to_s3(filepath, filename, job_id):
+    """
+    Uploads a file to Amazon S3.
+
+    Parameters
+    ----------
+    filepath: str
+        Local path to the file
+    filename: str
+        Name of the file with the extension, example: file.csv
+    job_id: str
+
+    Returns
+    -------
+    str
+        Amazon S3 key generated for this file
+    """
     s3_file_key = generate_s3_file_key(job_id, filename)
     s3 = boto3.resource('s3')
     s3.meta.client.upload_file(filepath, S3_BUCKET, s3_file_key)
@@ -396,7 +441,18 @@ def upload_to_s3(filepath, filename, job_id):
 
 
 def s3_to_df(s3_file_key):
-    """ Downloads file from S3 and converts it to a Pandas DataFrame. """
+    """
+    Downloads file from S3 and converts it to a Pandas DataFrame. Deletes the file from local disk when done.
+
+    Parameters
+    ----------
+    s3_file_key: str
+        Amazon S3 file key
+
+    Returns
+    -------
+    Pandas DataFrame
+    """
     s3 = boto3.client('s3')
     # Add random number to file name to avoid collisions with other processes on the same machine
     file_name = '/tmp/{}_{}'.format(s3_file_key.replace('/', '_'), random.randint(1, 1e6))

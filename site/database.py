@@ -20,7 +20,7 @@ def mongo_job_id_exists(job_id):
 
     Parameters
     ----------
-    job_id: str.
+    job_id: str
 
     Returns
     -------
@@ -39,7 +39,7 @@ def mongo_get_job(job_id):
 
     Parameters
     ----------
-    job_id: str.
+    job_id: str
 
     Returns
     -------
@@ -58,7 +58,7 @@ def mongo_no_context_get_job(job_id):
 
     Parameters
     ----------
-    job_id: str.
+    job_id: str
 
     Returns
     -------
@@ -79,7 +79,7 @@ def mongo_get_tasks(job_id):
 
     Parameters
     ----------
-    job_id: str.
+    job_id: str
 
     Returns
     -------
@@ -98,7 +98,7 @@ def mongo_no_context_get_tasks(job_id):
 
     Parameters
     ----------
-    job_id: str.
+    job_id: str
 
     Returns
     -------
@@ -119,8 +119,8 @@ def mongo_get_task(job_id, task_id):
 
     Parameters
     ----------
-    job_id: str.
-    task_id: int.
+    job_id: str
+    task_id: int
 
     Returns
     -------
@@ -139,8 +139,8 @@ def mongo_no_context_get_task(job_id, task_id):
 
     Parameters
     ----------
-    job_id: str.
-    task_id: int.
+    job_id: str
+    task_id: int
 
     Returns
     -------
@@ -306,9 +306,12 @@ def mongo_update_task(job_id, task_id, aic, bic, labels, elapsed_time, elapsed_r
     aic: float
     bic: float
     labels: list(int)
-    elapsed_time: float. Epoch time.
-    elapsed_read_time: float. Epoch time.
-    elapsed_processing_time: float. Epoch time.
+    elapsed_time: str
+        Epoch time converted to str
+    elapsed_read_time: str
+        Epoch time converted to str
+    elapsed_processing_time: str
+        Epoch time converted to str
 
     Returns
     -------
@@ -336,9 +339,12 @@ def mongo_no_context_update_task(job_id, task_id, aic, bic, labels, elapsed_time
     aic: float
     bic: float
     labels: list(int)
-    elapsed_time: float. Epoch time.
-    elapsed_read_time: float. Epoch time.
-    elapsed_processing_time: float. Epoch time.
+    elapsed_time: str
+        Epoch time converted to str
+    elapsed_read_time: str
+        Epoch time converted to str
+    elapsed_processing_time: str
+        Epoch time converted to str
 
     Returns
     -------
