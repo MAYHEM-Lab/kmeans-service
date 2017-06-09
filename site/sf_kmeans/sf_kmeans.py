@@ -14,7 +14,7 @@ from sklearn.cluster import k_means_
 
 
 class SF_KMeans(object):
-    def __init__(self, n_clusters=2, max_iter=300, tol=0.0001, verbose=1, n_init=10,
+    def __init__(self, n_clusters=2, max_iter=300, tol=0.0001, verbose=0, n_init=10,
                  metric='mahalanobis', use_rss=False, covar_type='full', covar_tied=False,
                  min_members='auto', warm_start=False, **kwargs):
         self.n_clusters = n_clusters
@@ -36,6 +36,10 @@ class SF_KMeans(object):
         self.covar_tied = covar_tied  # Only used with full, diag, spher covar_types
         self.warm_start = warm_start  # If True, cluster centers are not re-initialized each time fit is called
         self.min_members = min_members
+        self.all_labels_ = []
+        self.best_inertia_ = None
+        self.inertias_ = []
+        self.log_likelihoods_ = []
 
     def fit(self, data):
         """
@@ -54,7 +58,6 @@ class SF_KMeans(object):
         """
         data = np.array(data)
         labels, cluster_centers = [], []
-        inertias = []
         for i in range(self.n_init):
             if not self.warm_start:
                 self.cluster_centers_ = None
@@ -63,12 +66,17 @@ class SF_KMeans(object):
             self._fit(data)
             labels += [self.labels_]
             cluster_centers += [self.cluster_centers_]
-            inertias += [self._inertia(data)]
-        best_idx = np.argmin(inertias)
+            self.inertias_ += [self._inertia(data)]
+            self.log_likelihoods_ += [self.log_likelihood(data)]
+        best_idx = np.argmin(self.inertias_)
         self.labels_ = labels[best_idx]
+        self.all_labels_ = labels
+        self.best_log_likelihood_ = self.log_likelihoods_[best_idx]
+        self.best_inertia_ = self.inertias_[best_idx]
+        self.cluster_centers_ = cluster_centers[best_idx]
         if self.verbose == 1:
             print('fit: n_clusters: {}, label bin count: {}'.format(self.n_clusters, np.bincount(self.labels_, minlength=self.n_clusters)))
-        self.cluster_centers_ = cluster_centers[best_idx]
+
 
     def _fit(self, data):
         """
@@ -465,6 +473,30 @@ class SF_KMeans(object):
             raise Exception('ll is nan or inf')
         return log_likelihood
 
+    def free_parameters(self, data):
+        """
+        Compute free parameters for the model fit using K-Means
+        """
+        K = np.unique(self.labels_).shape[0]  # number of clusters
+        n, d = data.shape
+        r = (K - 1) + (K * d)
+        if self.metric == 'euclidean':
+            r += 1  # one parameter for variance
+        elif self.metric == 'mahalanobis':
+            if self.covar_type == 'full' and self.covar_tied:
+                r += (d * (d + 1) * 0.5)  # half of the elements (including diagonal) in the matrix
+            if self.covar_type == 'full' and not self.covar_tied:
+                r += (d * (d + 1) * 0.5 * K)  # half of the elements (including diagonal) in the matrix
+            if self.covar_type == 'diag' and self.covar_tied:
+                r += d  # diagonal elements of the matrix
+            if self.covar_type == 'diag' and not self.covar_tied:
+                r += (d * K)  # diagonal elements of the matrix
+            if self.covar_type == 'spher' and self.covar_tied:
+                r += 1  # all diagonal elements are equal
+            if self.covar_type == 'spher' and not self.covar_tied:
+                r += K  # all diagonal elements are equal
+        return r
+
     def bic(self, data):
         """
         Computes the BIC score for a model fit using K-Means.
@@ -480,13 +512,8 @@ class SF_KMeans(object):
         BIC score
         """
         data = np.array(data)
-        K = np.unique(self.labels_).shape[0]  # number of clusters
         n, d = data.shape
-        penalty = 0
-        if self.metric == 'euclidean':
-            penalty = 0.5 * ((K - 1) + 1 + (K * d)) * np.log(n)
-        elif self.metric == 'mahalanobis':
-            penalty = 0.5 * ((K - 1) + (K * d) + (d * (d + 1) * 0.5)) * np.log(n)
+        penalty = 0.5 + self.free_parameters(data) * np.log(n)
         if self.use_rss:
             rss = self._rss(data)
             bic = n * np.log(rss / float(n)) - penalty
@@ -514,13 +541,8 @@ class SF_KMeans(object):
         AIC score
         """
         data = np.array(data)
-        K = np.unique(self.labels_).shape[0]  # number of clusters
         n, d = data.shape
-        penalty = 0
-        if self.metric == 'euclidean':
-            penalty = (K - 1) + (K * d) + 1
-        elif self.metric == 'mahalanobis':
-            penalty = (K - 1) + (K * d) + (d * (d + 1) * 0.5)
+        penalty = 0.5 + self.free_parameters(data)
         if self.use_rss:
             rss = self._rss(data)
             aic = n * np.log(rss / float(n)) - penalty
@@ -532,4 +554,3 @@ class SF_KMeans(object):
         if self.verbose == 1:
             print('log_likelihood: {:0.4f}, penalty:{:0.4f}, aic:{:0.4f}'.format(log_likelihood, penalty, aic))
         return aic
-
