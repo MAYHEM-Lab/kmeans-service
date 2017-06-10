@@ -28,8 +28,8 @@ can be auto-scaled behind a load-balancer.
 
 ### Backend
 #### Queue
-1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) 
-with the following ports open: `TCP 22`, `TCP 5672` and, optionally, `TCP 15672`.  
+1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) of
+m1.small type with the following ports open: `TCP 22`, `TCP 5672` and, optionally, `TCP 15672`.  
 2. Login to the instances:   
 ```bash
 ssh -i <key_file>.pem ubuntu@<instances IP>
@@ -66,8 +66,8 @@ sudo service rabbitmq-server restart
 ```
 
 #### Database
-1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster)
-  with the following ports open: `TCP 22` and `TCP 27017`.
+1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) of 
+m1.medium type with the following ports open: `TCP 22` and `TCP 27017`.
 2. Login to the instances:   
 ```bash
 ssh -i <key_file>.pem ubuntu@<instances IP>
@@ -127,8 +127,8 @@ sudo service mongod restart
 
 
 #### Worker
-1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) 
-with the following port open: `TCP 22`.  
+1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) of 
+c1.xlarge type with the following port open: `TCP 22`.  
 2. Login to the instances:   
 ```bash
 ssh -i <key_file>.pem ubuntu@<instances IP>
@@ -181,8 +181,8 @@ sudo service worker start
 ```
 
 ### Frontend
-1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) 
-with the following ports open: `TCP 22` and `TCP 80`.  
+1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) of
+c1.xlarge type with the following ports open: `TCP 22` and `TCP 80`.  
 2. Login to the instances:   
 ```bash
 ssh -i <key_file>.pem ubuntu@<instances IP>
@@ -261,7 +261,7 @@ Follow these instructions to setup auto-scaling on [Aristole](https://console.ar
 Workers, after completing the setup above.
 
 ### 1. Create an Image
-1. SSH to the instances and run the following commands to prepare it for image creation::
+1. SSH to the Backend Worker instance and run the following commands to prepare it for image creation:
 ```bash
 sudo service worker stop
 sudo rm /var/log/upstart/worker.log 
@@ -279,12 +279,12 @@ sudo rm -rf /var/lib/cloud/instance /var/lib/cloud/instances/i*
 rm -f ~/.bash_history
 ```
 2. Go to the [Instances page](https://console.aristotle.ucsb.edu/instances) and find the instance.
-3. In the "Actions" columns, click on the ellipses ("...") and select "Create image".
+3. In the "Actions" column, click on the ellipses ("...") and select "Create image".
 4. Type an appropriate name, select a bucket (or create a new one), and click "Create Image".
-5. Once the image is created successfully, note down the image ID.
+5. Once the image is created successfully, note down the image ID (AMI).
 
 
-### 2. Create a Launch Config
+### 2. Create a Launch Configuration
 1. Go to the [Launch Configurations page](https://console.aristotle.ucsb.edu/launchconfigs) and click on "Create New
 Launch Configuration".
 2. Search for the image create earlier by name or by the AMI and click "Select".
@@ -305,7 +305,7 @@ Group".
 2. Type an appropriate name, set the "Max" to `5`, and click "Next". 
 3. Set the "Availability zone(s)" to "race" and click "Create Scaling Group". This will redirect to the page for the 
 configuration. 
-4. Create a policy to scale up that is triggered when the average CPU utilization for the group is over 25% for 1 
+4. Create a policy to scale up that triggers when the average CPU utilization for the group is over 25% for 1 
 minute:
     1. Select the "Scaling Policies" tab and click on "ADD A SCALING POLICY".
     2. Type an appropriate name, e.g., "scale-up-25-per-1-min".
@@ -321,7 +321,7 @@ minute:
         7. In the text box for "amount..." type `25`.
         8. In the text box next to "with each measurement lasting", type `1`
     6. Click on "Create Alarm" and then on "Create Scaling Policy".
-5. Create a policy to scale down that is triggered when the average CPU utilization for the group is under 10% for 5 
+5. Create a policy to scale down that triggers when the average CPU utilization for the group is under 10% for 5 
 minutes:
     1. Select the "Scaling Policies" tab and click on "ADD A SCALING POLICY".
     2. Type an appropriate name, e.g., "scale-down-10-per-5-min".
