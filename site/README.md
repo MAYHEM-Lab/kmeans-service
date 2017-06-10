@@ -256,9 +256,12 @@ MONGO_URI = 'mongodb://kmeans:<password@<MongoDB-IP>:27017/kmeansservice'
 sudo service frontend start
 ```
 
-## Tips for creating auto-scaling Backend Workers
-### Image Creation
-1. Prepare instance:
+## Setting up auto-scaling for Backend Workers
+Follow these instructions to setup auto-scaling on [Aristole](https://console.aristotle.ucsb.edu) for the Backend 
+Workers, after completing the setup above.
+
+### 1. Create an Image
+1. SSH to the instances and run the following commands to prepare it for image creation::
 ```bash
 sudo service worker stop
 sudo rm /var/log/upstart/worker.log 
@@ -275,12 +278,63 @@ sudo rm -rf /root/euca2ools*
 sudo rm -rf /var/lib/cloud/instance /var/lib/cloud/instances/i*
 rm -f ~/.bash_history
 ```
-2. Create the image using the [Aristole web console](https://console.aristotle.ucsb.edu) or Euca2ools.
+2. Go to the [Instances page](https://console.aristotle.ucsb.edu/instances) and find the instance.
+3. In the "Actions" columns, click on the ellipses ("...") and select "Create image".
+4. Type an appropriate name, select a bucket (or create a new one), and click "Create Image".
+5. Once the image is created successfully, note down the image ID.
 
-### Create Auto-Scaled Instances
-User Data File for Worker
+
+### 2. Create a Launch Config
+1. Go to the [Launch Configurations page](https://console.aristotle.ucsb.edu/launchconfigs) and click on "Create New
+Launch Configuration".
+2. Search for the image create earlier by name or by the AMI and click "Select".
+3. Type an appropriate name and select c1.xlarge instance type.
+4. Under "User data", select "Enter Text" and paste the following into the text box under it:
 ```bash
 #!/bin/bash
 sudo cp /home/ubuntu/kmeans-service/site/worker.conf /etc/init/worker.conf
 sudo service worker start
-``
+```
+5. Click "Next"
+6. Select key pair that will be used with these instance and select a security group that has `TCP` port `22` open.
+7. Click "Create Launch Configuration"
+
+### 3. Create an Auto-Scale Group
+1. Go to the [Scaling Groups page](https://console.aristotle.ucsb.edu/scalinggroups) and click on "Create New Scaling 
+Group".
+2. Type an appropriate name, set the "Max" to `5`, and click "Next". 
+3. Set the "Availability zone(s)" to "race" and click "Create Scaling Group". This will redirect to the page for the 
+configuration. 
+4. Create a policy to scale up that is triggered when the average CPU utilization for the group is over 25% for 1 
+minute:
+    1. Select the "Scaling Policies" tab and click on "ADD A SCALING POLICY".
+    2. Type an appropriate name, e.g., "scale-up-25-per-1-min".
+    3. Under "Action", select "Scale up by".
+    4. Under "Alarm", click on "Crete alarm".
+    5. In the pop-up modal window:
+        1. Type an appropriate name, e.g., "25-per-1-min"
+        2. In the drop down box next to "When the", select "Average"
+        3. In the drop down box next to "Average", select "AWS/EC2 - CPUUtilization"
+        4. In the drop down next to "for", select "Scaling group"
+        5. In the drop down next to "Scaling group", select the name of the scaling group being created in this setup.
+        6. In the drop down box next to "is", select ">="
+        7. In the text box for "amount..." type `25`.
+        8. In the text box next to "with each measurement lasting", type `1`
+    6. Click on "Create Alarm" and then on "Create Scaling Policy".
+5. Create a policy to scale down that is triggered when the average CPU utilization for the group is under 10% for 5 
+minutes:
+    1. Select the "Scaling Policies" tab and click on "ADD A SCALING POLICY".
+    2. Type an appropriate name, e.g., "scale-down-10-per-5-min".
+    3. Under "Action", select "Scale down by".
+    4. Under "Alarm", click on "Crete alarm".
+    5. In the pop-up modal window:
+        1. Type an appropriate name, e.g., "10-per-5-min"
+        2. In the drop down box next to "When the", select "Average"
+        3. In the drop down box next to "Average", select "AWS/EC2 - CPUUtilization"
+        4. In the drop down next to "for", select "Scaling group"
+        5. In the drop down next to "Scaling group", select the name of the scaling group being created in this setup.
+        6. In the drop down box next to "is", select "<"
+        7. In the text box for "amount..." type `10`.
+        8. In the text box next to "with each measurement lasting", type `5`
+    6. Click on "Create Alarm" and then on "Create Scaling Policy".
+
