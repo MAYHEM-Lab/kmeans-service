@@ -102,9 +102,10 @@ def tasks_to_best_results(tasks):
         list of k values
         list of labels
         list of BIC values
+        list of task_id
     """
     # Filter list of dicts to reduce the size of Pandas DataFrame
-    df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied', 'bic', '_id']))
+    df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['task_id', 'k', 'covar_type', 'covar_tied', 'bic', '_id']))
 
     # Subset df to needed columns and fix types
     df['bic'] = df['bic'].astype('float')
@@ -115,14 +116,21 @@ def tasks_to_best_results(tasks):
     df_best_mean_bic = df_best_mean_bic.sort_values('bic', ascending=False)
     df_best_mean_bic = df_best_mean_bic.groupby(['covar_type', 'covar_tied'], as_index=False).first()
 
-    # Get labels from df that correspond to the largest bic
+    # Get labels from df that correspond to a bic closest to the best mean bic
     df = pd.merge(df, df_best_mean_bic, how='inner', on=['covar_type', 'covar_tied', 'k'], suffixes=('_x', '_y'))
-    df = df.sort_values('bic_x', ascending=False)
+    print(df.shape)
+    df = df.assign(bic_diff=abs(df.bic_x - df.bic_y))
+    print(df.shape)
+    df = df.sort_values('bic_diff')
+    print(df.shape)
     df = df.groupby(['covar_type', 'covar_tied', 'k'], as_index=False).first()
+    print(df.shape)
     labels = []
     for row in df['_id']:
         labels += [t['labels'] for t in tasks if t['_id'] == row]
-    return df['covar_type'].tolist(), df['covar_tied'].tolist(), df['k'].tolist(), labels, df['bic_x']
+
+    return df['covar_type'].tolist(), df['covar_tied'].tolist(), df['k'].tolist(), labels, df['bic_x'], \
+           df['task_id_x'].tolist()
 
 
 def task_stats(n_tasks, tasks):

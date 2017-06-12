@@ -17,8 +17,7 @@
         {% if covar_type in covar_type_tied_k %}
         {% if covar_tied in covar_type_tied_k[covar_type] %}
         {{covar_type}}-{{covar_tied}}: {{covar_type_tied_k[covar_type][covar_tied]}}
-        <a href="{{url_for('download_labels', job_id=job_id, covar_type=covar_type,
-        covar_tied=covar_tied, k=covar_type_tied_k[covar_type][covar_tied], min_members=min_members)}}">
+        <a href="{{url_for('download_labels', job_id=job_id, task_id=covar_type_tied_task_id[covar_type][covar_tied])}}">
           <button class="btn btn-secondary btn-sm pull-right">
             <i class="fa fa-download"></i>
           </button>

@@ -33,7 +33,7 @@ from utils import plot_cluster_fig, plot_aic_bic_fig, plot_count_fig, plot_corre
 from utils import allowed_file, upload_to_s3, s3_to_df
 
 from database import mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks, mongo_get_tasks_by_args
-from database import mongo_add_s3_file_key
+from database import mongo_add_s3_file_key, mongo_get_task
 from worker import create_tasks, rerun_task
 from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS, SPATIAL_COLUMNS
 
@@ -145,7 +145,7 @@ def report(job_id=None):
     tasks = filter_by_min_members(tasks, min_members=min_members)
     start_time_date, start_time_clock = format_date_time(job['start_time'])
 
-    covar_types, covar_tieds, ks, labels, bics = tasks_to_best_results(tasks)
+    covar_types, covar_tieds, ks, labels, bics, task_ids = tasks_to_best_results(tasks)
 
     if x_axis is None or y_axis is None:
         # Visualize the first two columns that are not on the exclude list
@@ -165,9 +165,17 @@ def report(job_id=None):
     for covar_type, covar_tied, k in zip(covar_types, covar_tieds, ks):
         covar_type_tied_k[covar_type.capitalize()][['Untied', 'Tied'][covar_tied]] = k
 
+    # task_id for all recommended assignments
+    covar_type_tied_task_id = {}
+    for covar_type in covar_types:
+        covar_type_tied_task_id[covar_type.capitalize()] = {}
+
+    for covar_type, covar_tied, task_id in zip(covar_types, covar_tieds, task_ids):
+        covar_type_tied_task_id[covar_type.capitalize()][['Untied', 'Tied'][covar_tied]] = task_id
+
     return render_template('report.html', job_id=job_id, job=job, min_members=min_members,
-                           covar_type_tied_k=covar_type_tied_k, columns=columns,
-                           viz_columns=viz_columns, spatial_columns=spatial_columns,
+                           covar_type_tied_k=covar_type_tied_k, covar_type_tied_task_id=covar_type_tied_task_id,
+                           columns=columns, viz_columns=viz_columns, spatial_columns=spatial_columns,
                            start_time_date=start_time_date, start_time_clock=start_time_clock)
 
 
@@ -260,7 +268,7 @@ def plot_cluster():
 
     if min_members is not None:
         tasks = filter_by_min_members(tasks, min_members)
-    covar_types, covar_tieds, ks, labels, bics = tasks_to_best_results(tasks)
+    covar_types, covar_tieds, ks, labels, bics, task_ids = tasks_to_best_results(tasks)
     s3_file_key = job['s3_file_key']
     viz_columns = [x_axis, y_axis]
     data = s3_to_df(s3_file_key)
@@ -308,11 +316,8 @@ def download_labels():
     Parameters
     ----------
     job_id: str
-    covar_type: str
-    covar_tied: bool
-    k: int
-    min_members: int, optional
-        Minimum number of members required in all clusters in an experiment to consider the experiment for the report.
+    task_id: str
+        converted to int in this function
 
     Returns
     -------
@@ -320,27 +325,25 @@ def download_labels():
     """
 
     job_id = request.args.get('job_id')
-    covar_type = request.args.get('covar_type')
-    covar_tied = request.args.get('covar_tied')
-    k = int(request.args.get('k'))
-    export_filename = '{}_{}_{}_{}.csv'.format(job_id, covar_type, covar_tied, k)
-
-    covar_type = request.args.get('covar_type').lower()
-    if type(covar_tied) != bool:
-        covar_tied = covar_tied == 'Tied'
-
-    min_members = int(request.args.get('min_members', None))
-
     if job_id is None:
         return None
+    task_id = int(request.args.get('task_id'))
+    if task_id is None:
+        return None
+    task = mongo_get_task(job_id, task_id)
+    if task is None:
+        return None
+
+    covar_type = task['covar_type']
+    covar_tied = task['covar_tied']
+    k = task['k']
+    export_filename = '{}_{}_{}_{}.csv'.format(job_id, covar_type, covar_tied, k)
 
     job = mongo_get_job(job_id)
     s3_file_key = job['s3_file_key']
     data = s3_to_df(s3_file_key)
-    tasks = mongo_get_tasks_by_args(job_id, covar_type, covar_tied, k)
-    if min_members is not None:
-        tasks = filter_by_min_members(tasks, min_members)
-    data = data.assign(Label=tasks[0]['labels'])
+
+    data = data.assign(Label=task['labels'])
     response = make_response(data.to_csv(index=False))
     response.headers["Content-Disposition"] = "attachment; filename={}".format(export_filename)
     response.headers["Content-Type"] = "text/csv"
