@@ -118,13 +118,8 @@ def tasks_to_best_results(tasks):
 
     # Get labels from df that correspond to a bic closest to the best mean bic
     df = pd.merge(df, df_best_mean_bic, how='inner', on=['covar_type', 'covar_tied', 'k'], suffixes=('_x', '_y'))
-    print(df.shape)
-    df = df.assign(bic_diff=abs(df.bic_x - df.bic_y))
-    print(df.shape)
-    df = df.sort_values('bic_diff')
-    print(df.shape)
+    df = df.sort_values('bic_x', ascending=False)
     df = df.groupby(['covar_type', 'covar_tied', 'k'], as_index=False).first()
-    print(df.shape)
     labels = []
     for row in df['_id']:
         labels += [t['labels'] for t in tasks if t['_id'] == row]
