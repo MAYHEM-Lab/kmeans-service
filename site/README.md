@@ -122,7 +122,7 @@ sudo chown -R mongodb:mongodb /mnt/mongodb
 ```
 9. Run MongoDB:
 ```bash
-sudo service mongod restart
+sudo service mongodb restart
 ```
 
 
