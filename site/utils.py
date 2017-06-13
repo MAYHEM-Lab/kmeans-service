@@ -212,7 +212,7 @@ def plot_aic_bic_fig(tasks):
     -------
     Matplotlib Figure object
     """
-    sns.set(context='talk')
+    sns.set(context='talk', style='whitegrid')
     # Filter list of dicts to reduce the size of Pandas DataFrame
     df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']))
     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
@@ -316,7 +316,7 @@ def plot_count_fig(tasks):
     -------
     Matplotlib Figure object.
     """
-    sns.set(context='talk')
+    sns.set(context='talk', style='whitegrid')
     df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied']))
     df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
