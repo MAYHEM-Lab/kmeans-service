@@ -77,7 +77,8 @@
 
   <h3>Cluster Plots</h3>
   <p>
-    Recommended cluster assignments are visualized below using the columns {{viz_columns[0]}} and {{viz_columns[1]}}:
+    Recommended cluster assignments are visualized below using the columns {{viz_columns[0]}} and {{viz_columns[1]}}.
+    Assignment with the best (highest) BIC score is shown in <b>bold</b>.
   </p>
   <div class="form-group row">
     <div class="form-inline" id="cluster_plot_reload_form">
@@ -127,7 +128,8 @@
   {% if (spatial_columns|length) == 2 %}
   <h3>Spatial Cluster Plots</h3>
   <p>
-    Recommended cluster assignments are visualized below:
+    Recommended cluster assignments are visualized below. Assignment with the best (highest) BIC score is shown in
+    <b>bold</b>.
   </p>
   <div id="spatial_plot_loading">
     <i class="fa fa-spinner fa-pulse fa-fw"></i>

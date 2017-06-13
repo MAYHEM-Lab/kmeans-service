@@ -222,7 +222,7 @@ def plot_aic_bic_fig(tasks):
     df = pd.melt(df, id_vars=['k', 'covar_type', 'covar_tied'], value_vars=['aic', 'bic'], var_name='metric')
     f = sns.factorplot(x='k', y='value', col='covar_type', row='covar_tied', hue='metric', data=df,
                        row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True,
-                       n_boot=100)
+                       ci=95, n_boot=100)
     f.set_titles("{col_name}-{row_name}")
     f.set_xlabels("Num. of Clusters (k)")
     return f.fig
@@ -260,6 +260,11 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics, show_ticks=Tr
     lim_bottom = data[columns[1]].min()
     lim_top = data[columns[1]].max()
 
+    covar_type_tied_labels_k_bics = list(covar_type_tied_labels_k_bics)
+
+    bics = [x[4] for x in covar_type_tied_labels_k_bics]
+    max_bic = max(bics)
+
     for covar_type, covar_tied, labels, k, bic in covar_type_tied_labels_k_bics:
         plt.subplot(2, 3, placement[covar_type][covar_tied])
         plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow, s=10)
@@ -270,7 +275,11 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics, show_ticks=Tr
         if show_ticks is False:
             plt.xticks([])
             plt.yticks([])
-        plt.title('{}-{}, k={}\nBIC: {:,.1f}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k, bic))
+        title = '{}-{}, k={}\nBIC: {:,.1f}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k, bic)
+        if bic == max_bic:
+            plt.title(title, fontweight='bold')
+        else:
+            plt.title(title)
     plt.tight_layout()
     return fig
 
