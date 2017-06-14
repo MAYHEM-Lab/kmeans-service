@@ -458,7 +458,7 @@ def upload_to_s3(filepath, filename, job_id):
                                  port=8773, path=EUCA_S3_PATH, host=EUCA_S3_HOST)
     euca_bucket = s3conn.get_bucket(S3_BUCKET)
     k = boto.s3.key.Key(bucket=euca_bucket, name=s3_file_key)
-    k.set_contents_from_filename(filename)
+    k.set_contents_from_filename(filepath)
     return s3_file_key
 
 
