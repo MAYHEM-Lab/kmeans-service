@@ -513,7 +513,7 @@ class SF_KMeans(object):
         """
         data = np.array(data)
         n, d = data.shape
-        penalty = 0.5 + self.free_parameters(data) * np.log(n)
+        penalty = 0.5 * self.free_parameters(data) * np.log(n)
         if self.use_rss:
             rss = self._rss(data)
             bic = n * np.log(rss / float(n)) - penalty
@@ -542,7 +542,7 @@ class SF_KMeans(object):
         """
         data = np.array(data)
         n, d = data.shape
-        penalty = 0.5 + self.free_parameters(data)
+        penalty = self.free_parameters(data)
         if self.use_rss:
             rss = self._rss(data)
             aic = n * np.log(rss / float(n)) - penalty
