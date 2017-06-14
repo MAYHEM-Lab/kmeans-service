@@ -168,7 +168,10 @@ pip install -r requirements.txt
 ```
 9. Configure worker service:
 ```bash
+#if using upstart
 sudo cp /home/ubuntu/kmeans-service/site/worker.conf /etc/init/worker.conf
+#if using systemd
+sudo cp /home/ubuntu/kmeans-service/site/util/worker.service /etc/systemd/system/
 ```
 10. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
 ```
@@ -177,7 +180,10 @@ MONGO_URI = 'mongodb://kmeans:<password>@<MongoDB-IP>:27017/kmeansservice'
 ```
 11. Run the server:  
 ```bash
+#if using upstart
 sudo service worker start
+#if using systemd
+sudo systemctl start worker
 ```
 
 ### Frontend
@@ -236,7 +242,10 @@ touch /home/ubuntu/logs/gunicorn/error.log
 ```
 11. Configure frontend service:
 ```bash
+#if using upstart
 sudo cp /home/ubuntu/kmeans-service/site/frontend.conf /etc/init/frontend.conf
+#if using systemd
+sudo cp /home/ubuntu/kmeans-service/site/util/frontend.service /etc/systemd/system/
 ```
 12. Generate a secret key for the Flask server:
 ```bash
@@ -253,7 +262,10 @@ MONGO_URI = 'mongodb://kmeans:<password>@<MongoDB-IP>:27017/kmeansservice'
 ```
 14. Run the server:  
 ```bash
+#if using upstart
 sudo service frontend start
+#if using systemd
+sudo systemctl start frontend
 ```
 
 ## Setting up auto-scaling for Backend Workers
@@ -277,6 +289,7 @@ sudo rm -rf /root/linux-rootfs-resize*
 sudo rm -rf /root/euca2ools*
 sudo rm -rf /var/lib/cloud/instance /var/lib/cloud/instances/i*
 rm -f ~/.bash_history
+#remove all keys and credentials also!
 ```
 2. Go to the [Instances page](https://console.aristotle.ucsb.edu/instances) and find the instance.
 3. In the "Actions" column, click on the ellipses ("...") and select "Create image".
