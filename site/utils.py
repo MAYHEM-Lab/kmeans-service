@@ -10,6 +10,7 @@ import time
 import base64
 import urllib.parse
 
+import boto
 import boto3
 
 import pandas as pd
@@ -19,7 +20,8 @@ from matplotlib import pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 from flask import make_response
-from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS, SPATIAL_COLUMNS, S3_BUCKET
+from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS, SPATIAL_COLUMNS
+from config import S3_BUCKET, EUCA_S3_HOST, EUCA_S3_PATH, EUCA_KEY_ID, EUCA_SECRET_KEY
 
 
 def format_date_time(epoch_time):
@@ -224,7 +226,7 @@ def plot_aic_bic_fig(tasks):
                        row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True,
                        ci=95, n_boot=100)
     f.set_titles("{col_name}-{row_name}")
-    f.set_xlabels("Num. of Clusters (k)")
+    f.set_xlabels("Num. of Clusters (K)")
     return f.fig
 
 
@@ -275,7 +277,7 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics, show_ticks=Tr
         if show_ticks is False:
             plt.xticks([])
             plt.yticks([])
-        title = '{}-{}, k={}\nBIC: {:,.1f}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k, bic)
+        title = '{}-{}, K={}\nBIC: {:,.1f}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k, bic)
         if bic == max_bic:
             plt.title(title, fontweight='bold')
         else:
@@ -325,6 +327,7 @@ def plot_count_fig(tasks):
                       row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True,
                       palette='Blues_d')
     f.set_titles("{col_name}-{row_name}")
+    f.set_xlabels("Num. of Clusters (K)")
     return f.fig
 
 
@@ -348,7 +351,7 @@ def plot_spatial_cluster_fig(data, covar_type_tied_labels_k):
         plt.yticks([])
         plt.xlabel('Longitude')
         plt.ylabel('Latitude')
-        plt.title('{}-{}, k={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
+        plt.title('{}-{}, K={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
     plt.tight_layout()
     return fig
 
@@ -445,8 +448,17 @@ def upload_to_s3(filepath, filename, job_id):
         Amazon S3 key generated for this file
     """
     s3_file_key = generate_s3_file_key(job_id, filename)
-    s3 = boto3.resource('s3')
-    s3.meta.client.upload_file(filepath, S3_BUCKET, s3_file_key)
+
+    """ Amazon S3 code """
+    # s3 = boto3.resource('s3')
+    # s3.meta.client.upload_file(filepath, S3_BUCKET, s3_file_key)
+
+    """ Eucalyptus S3 code """
+    s3conn = boto.connect_walrus(aws_access_key_id=EUCA_KEY_ID, aws_secret_access_key=EUCA_SECRET_KEY, is_secure=False,
+                                 port=8773, path=EUCA_S3_PATH, host=EUCA_S3_HOST)
+    euca_bucket = s3conn.get_bucket(S3_BUCKET)
+    k = boto.s3.key.Key(bucket=euca_bucket, name=s3_file_key)
+    k.set_contents_from_filename(filename)
     return s3_file_key
 
 
@@ -463,10 +475,20 @@ def s3_to_df(s3_file_key):
     -------
     Pandas DataFrame
     """
-    s3 = boto3.client('s3')
     # Add random number to file name to avoid collisions with other processes on the same machine
-    file_name = '/tmp/{}_{}'.format(s3_file_key.replace('/', '_'), random.randint(1, 1e6))
-    s3.download_file(S3_BUCKET, s3_file_key, file_name)
-    df = pd.read_csv(file_name)
-    os.remove(file_name)
+    filename = '/tmp/{}_{}'.format(s3_file_key.replace('/', '_'), random.randint(1, 1e6))
+
+    """ Amazon S3 code """
+    # s3 = boto3.client('s3')
+    # s3.download_file(S3_BUCKET, s3_file_key, filename)
+
+    """ Eucalyptus S3 code """
+    s3conn = boto.connect_walrus(aws_access_key_id=EUCA_KEY_ID, aws_secret_access_key=EUCA_SECRET_KEY, is_secure=False,
+                                 port=8773, path=EUCA_S3_PATH, host=EUCA_S3_HOST)
+    euca_bucket = s3conn.get_bucket(S3_BUCKET)
+    k = boto.s3.key.Key(bucket=euca_bucket, name=s3_file_key)
+    k.get_contents_to_filename(filename)
+
+    df = pd.read_csv(filename)
+    os.remove(filename)
     return df
