@@ -263,11 +263,11 @@ Workers, after completing the setup above.
 ### 1. Create an Image
 1. SSH to the Backend Worker instance and run the following commands to prepare it for image creation:
 ```bash
-sudo service worker stop
-sudo rm /var/log/upstart/worker.log 
-sudo rm /etc/init/worker.conf
-sudo service frontend stop
-sudo rm /etc/init/frontend.conf
+sudo service worker stop //systemd: sudo systemctl stop worker 
+sudo rm -f /var/log/upstart/worker.log 
+sudo rm -f /etc/init/worker.conf
+sudo service frontend stop  //systemd: sudo systemctl stop frontend
+sudo rm -f /etc/init/frontend.conf
 sudo rm -rf /home/ubuntu/logs/
 sudo apt-get update; sudo apt-get -y upgrade; sudo apt-get -y dist-upgrade; sudo apt-get -y autoremove
 sudo apt-get -y install tzdata ntp zip unzip curl wget cvs git python-pip build-essential
@@ -310,7 +310,7 @@ minute:
     1. Select the "Scaling Policies" tab and click on "ADD A SCALING POLICY".
     2. Type an appropriate name, e.g., "scale-up-25-per-1-min".
     3. Under "Action", select "Scale up by".
-    4. Under "Alarm", click on "Crete alarm".
+    4. Under "Alarm", click on "Creat alarm".
     5. In the pop-up modal window:
         1. Type an appropriate name, e.g., "25-per-1-min"
         2. In the drop down box next to "When the", select "Average"
