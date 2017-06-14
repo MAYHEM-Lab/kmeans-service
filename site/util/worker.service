@@ -1,0 +1,14 @@
+[Unit]
+Description=Celery application server running K-Means service worker
+
+[Service]
+Type=simple
+User=ubuntu
+TimeoutStopSec=300
+ExecStartPre=/usr/sbin/settime.sh
+WorkingDirectory=/home/ubuntu/kmeans-service/site
+ExecStart=/home/ubuntu/kmeans-service/site/venv/bin/celery worker -A worker
+ExecStop=/usr/sbin/celery-teardown.sh
+
+[Install]
+WantedBy=multi-user.target
