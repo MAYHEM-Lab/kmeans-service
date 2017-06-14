@@ -18,9 +18,7 @@ There are four servers needed for this web service.
 2. Backend Queue  
 3. Backend Worker  
 4. Backend Database  
-In addition, Amazon S3 is used to store the files uploaded by users. 
-AWS access key is required to make this work.
-Amazon S3 is used by the Frontend and the Backend Worker.
+5. Backend File Store: Eucalyptus S3 is used for this. Eucalyptus access key is required to make this work.
 
 To make it scalable, all four are setup on different instances on Eucalyptus.
 The Frontend server and the Backend-Worker server also also setup so that these
@@ -151,14 +149,7 @@ sudo apt-get install -y python-virtualenv python3-tk git
 ```bash
 git clone https://github.com/MAYHEM-Lab/kmeans-service.git
 ```
-7. Provide AWS credentials:
-```bash
-mkdir ~/.aws
-cd ~/.aws/
-echo -e "[default]\nregion = us-west-1" > config
-echo -e "[default]\naws_access_key_id = <add key id>\naws_secret_access_key = <add key>" > credentials
-```
-8. Install required Python packages:
+7. Install required Python packages:
 ```bash
 cd ~/kmeans-service/site
 virtualenv venv --python=python3
@@ -166,19 +157,21 @@ source venv/bin/activate
 pip install pip --upgrade
 pip install -r requirements.txt
 ```
-9. Configure worker service:
+8. Configure worker service:
 ```bash
 #if using upstart
 sudo cp /home/ubuntu/kmeans-service/site/worker.conf /etc/init/worker.conf
 #if using systemd
 sudo cp /home/ubuntu/kmeans-service/site/util/worker.service /etc/systemd/system/
 ```
-10. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
+9. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
 ```
 CELERY_BROKER = 'amqp://kmeans:<password>@<RabbitMQ-IP>:5672//'
 MONGO_URI = 'mongodb://kmeans:<password>@<MongoDB-IP>:27017/kmeansservice'
+EUCA_KEY_ID = "<eucalyptus_key_id>"
+EUCA_SECRET_KEY = "<eucalyptus_secret_key>"
 ```
-11. Run the server:  
+10. Run the server:  
 ```bash
 #if using upstart
 sudo service worker start
@@ -211,14 +204,7 @@ sudo apt-get install -y nginx python-virtualenv python3-tk git
 ```bash
 git clone https://github.com/MAYHEM-Lab/kmeans-service.git
 ```
-7. Provide AWS credentials:
-```bash
-mkdir ~/.aws
-cd ~/.aws/
-echo -e "[default]\nregion = us-west-1" > config
-echo -e "[default]\naws_access_key_id = <add key id>\naws_secret_access_key = <add key>" > credentials
-```
-8. Install required Python packages:
+7. Install required Python packages:
 ```bash
 cd ~/kmeans-service/site
 virtualenv venv --python=python3
@@ -226,7 +212,7 @@ source venv/bin/activate
 pip install pip --upgrade
 pip install -r requirements.txt
 ```
-9. Configure NGINX:
+8. Configure NGINX:
 ```bash
 sudo /etc/init.d/nginx start
 sudo rm /etc/nginx/sites-enabled/default
@@ -234,39 +220,46 @@ sudo cp nginx.conf /etc/nginx/sites-available/kmeans_frontend
 sudo ln -s /etc/nginx/sites-available/kmeans_frontend /etc/nginx/sites-enabled/kmeans_frontend
 sudo /etc/init.d/nginx restart
 ```
-10. Create directory for logs:
+9. Create directory for logs:
 ```bash
 mkdir /home/ubuntu/logs
 mkdir /home/ubuntu/logs/gunicorn
 touch /home/ubuntu/logs/gunicorn/error.log
 ```
-11. Configure frontend service:
+10. Configure frontend service:
 ```bash
 #if using upstart
 sudo cp /home/ubuntu/kmeans-service/site/frontend.conf /etc/init/frontend.conf
 #if using systemd
 sudo cp /home/ubuntu/kmeans-service/site/util/frontend.service /etc/systemd/system/
 ```
-12. Generate a secret key for the Flask server:
+11. Generate a secret key for the Flask server:
 ```bash
 python
 >>> import os
 >>> os.urandom(24)
 '\xcf6\x16\xac?\xdb\x0c\x1fb\x01p;\xa1\xf2/\x19\x8e\xcd\xfc\x07\xc9\xfd\x82\xf4'
 ```
-13. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
+12. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
 ```
 FLASK_SECRET_KEY = <secret key generted in 10.>
 CELERY_BROKER = 'amqp://kmeans:<password>@<RabbitMQ-IP>:5672//'
 MONGO_URI = 'mongodb://kmeans:<password>@<MongoDB-IP>:27017/kmeansservice'
+EUCA_KEY_ID = "<eucalyptus_key_id>"
+EUCA_SECRET_KEY = "<eucalyptus_secret_key>"
 ```
-14. Run the server:  
+13. Run the server:  
 ```bash
 #if using upstart
 sudo service frontend start
 #if using systemd
 sudo systemctl start frontend
 ```
+
+## File Store
+1. Login to [Eucalyptus S3](https://console.aristotle.ucsb.edu/buckets).
+2. Click on "Create Bucket".
+3. Name it "kmeansservice" and click on "Create Bucket".
 
 ## Setting up auto-scaling for Backend Workers
 Follow these instructions to setup auto-scaling on [Aristole](https://console.aristotle.ucsb.edu) for the Backend 
