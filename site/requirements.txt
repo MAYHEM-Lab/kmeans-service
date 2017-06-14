@@ -1,6 +1,7 @@
 amqp==2.1.4
 appdirs==1.4.3
 billiard==3.5.0.2
+boto==2.47.0
 boto3==1.4.4
 botocore==1.5.45
 celery==4.0.2
