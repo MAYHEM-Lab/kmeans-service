@@ -123,6 +123,11 @@ sudo chown -R mongodb:mongodb /mnt/mongodb
 sudo service mongodb restart
 ```
 
+### File Store
+1. Login to [Eucalyptus S3](https://console.aristotle.ucsb.edu/buckets).
+2. Click on "Create Bucket".
+3. Give it a unique name and click on "Create Bucket".
+
 
 #### Worker
 1. Create an Ubuntu 14.04 Trusty instance (AMI: emi-CF65C654 on ECI cluster or emi-80246ee5 on Aristotle cluster) of 
@@ -164,10 +169,11 @@ sudo cp /home/ubuntu/kmeans-service/site/worker.conf /etc/init/worker.conf
 #if using systemd
 sudo cp /home/ubuntu/kmeans-service/site/util/worker.service /etc/systemd/system/
 ```
-9. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
+9. Set (or replace) values in `config.py`:
 ```
 CELERY_BROKER = 'amqp://kmeans:<password>@<RabbitMQ-IP>:5672//'
 MONGO_URI = 'mongodb://kmeans:<password>@<MongoDB-IP>:27017/kmeansservice'
+S3_BUCKET = '<unique_s3_bucket_name>'
 EUCA_KEY_ID = "<eucalyptus_key_id>"
 EUCA_SECRET_KEY = "<eucalyptus_secret_key>"
 ```
@@ -240,11 +246,12 @@ python
 >>> os.urandom(24)
 '\xcf6\x16\xac?\xdb\x0c\x1fb\x01p;\xa1\xf2/\x19\x8e\xcd\xfc\x07\xc9\xfd\x82\xf4'
 ```
-12. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
+12. Set (or replace) values in `config.py`:
 ```
 FLASK_SECRET_KEY = <secret key generted in 10.>
 CELERY_BROKER = 'amqp://kmeans:<password>@<RabbitMQ-IP>:5672//'
 MONGO_URI = 'mongodb://kmeans:<password>@<MongoDB-IP>:27017/kmeansservice'
+S3_BUCKET = '<unique_s3_bucket_name>'
 EUCA_KEY_ID = "<eucalyptus_key_id>"
 EUCA_SECRET_KEY = "<eucalyptus_secret_key>"
 ```
@@ -255,11 +262,6 @@ sudo service frontend start
 #if using systemd
 sudo systemctl start frontend
 ```
-
-### File Store
-1. Login to [Eucalyptus S3](https://console.aristotle.ucsb.edu/buckets).
-2. Click on "Create Bucket".
-3. Name it "kmeansservice" and click on "Create Bucket".
 
 ## Setting up auto-scaling for Backend Workers
 Follow these instructions to setup auto-scaling on [Aristole](https://console.aristotle.ucsb.edu) for the Backend 
