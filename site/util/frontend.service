@@ -1,0 +1,13 @@
+[Unit]
+Description=Gunicorn application server running K-Means service frontend
+
+[Service]
+Type=simple
+Restart=on-failure
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/kmeans-service/site
+ExecStart=/home/ubuntu/kmeans-service/site/venv/bin/gunicorn --workers 2 --error-logfile /home/ubuntu/logs/gunicorn/error.log --timeout 600 frontend:app
+
+[Install]
+WantedBy=multi-user.target
