@@ -173,7 +173,7 @@ sudo cp /home/ubuntu/kmeans-service/site/worker.conf /etc/init/worker.conf
 10. Set values in `config.py` using usersnames and passwords from the Queue and Database setup:
 ```
 CELERY_BROKER = 'amqp://kmeans:<password>@<RabbitMQ-IP>:5672//'
-MONGO_URI = 'mongodb://kmeans:<password@<MongoDB-IP>:27017/kmeansservice'
+MONGO_URI = 'mongodb://kmeans:<password>@<MongoDB-IP>:27017/kmeansservice'
 ```
 11. Run the server:  
 ```bash
@@ -249,7 +249,7 @@ python
 ```
 FLASK_SECRET_KEY = <secret key generted in 10.>
 CELERY_BROKER = 'amqp://kmeans:<password>@<RabbitMQ-IP>:5672//'
-MONGO_URI = 'mongodb://kmeans:<password@<MongoDB-IP>:27017/kmeansservice'
+MONGO_URI = 'mongodb://kmeans:<password>@<MongoDB-IP>:27017/kmeansservice'
 ```
 14. Run the server:  
 ```bash
