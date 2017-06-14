@@ -224,7 +224,7 @@ def plot_aic_bic_fig(tasks):
                        row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True,
                        ci=95, n_boot=100)
     f.set_titles("{col_name}-{row_name}")
-    f.set_xlabels("Num. of Clusters (k)")
+    f.set_xlabels("Num. of Clusters (K)")
     return f.fig
 
 
@@ -275,7 +275,7 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics, show_ticks=Tr
         if show_ticks is False:
             plt.xticks([])
             plt.yticks([])
-        title = '{}-{}, k={}\nBIC: {:,.1f}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k, bic)
+        title = '{}-{}, K={}\nBIC: {:,.1f}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k, bic)
         if bic == max_bic:
             plt.title(title, fontweight='bold')
         else:
@@ -325,6 +325,7 @@ def plot_count_fig(tasks):
                       row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True,
                       palette='Blues_d')
     f.set_titles("{col_name}-{row_name}")
+    f.set_xlabels("Num. of Clusters (K)")
     return f.fig
 
 
@@ -348,7 +349,7 @@ def plot_spatial_cluster_fig(data, covar_type_tied_labels_k):
         plt.yticks([])
         plt.xlabel('Longitude')
         plt.ylabel('Latitude')
-        plt.title('{}-{}, k={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
+        plt.title('{}-{}, K={}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k))
     plt.tight_layout()
     return fig
 
