@@ -256,7 +256,7 @@ sudo service frontend start
 sudo systemctl start frontend
 ```
 
-## File Store
+### File Store
 1. Login to [Eucalyptus S3](https://console.aristotle.ucsb.edu/buckets).
 2. Click on "Create Bucket".
 3. Name it "kmeansservice" and click on "Create Bucket".

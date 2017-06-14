@@ -12,7 +12,7 @@ Architecture:
 Frontend Flask server --> Celery Worker
     |           |               |   ^
     v           v               |   |
-Amazon S3      MongoDB  <-------+   |
+Eucalyptus S3  MongoDB  <-------+   |
     |                           |   |
     |                           |   |
     +---------------------------+---+

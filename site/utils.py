@@ -413,7 +413,7 @@ def allowed_file(filename):
 
 def generate_s3_file_key(job_id, filename):
     """
-    Generates a unique key for use in Amazon S3.
+    Generates a unique key for use in Eucalyptus S3.
 
     Parameters
     ----------
@@ -424,7 +424,7 @@ def generate_s3_file_key(job_id, filename):
     Returns
     -------
     str
-        file key for Amazon S3
+        file key for Eucalyptus S3
 
     """
     return '{}/{}/{}'.format(UPLOAD_FOLDER, job_id, filename)
@@ -432,7 +432,7 @@ def generate_s3_file_key(job_id, filename):
 
 def upload_to_s3(filepath, filename, job_id):
     """
-    Uploads a file to Amazon S3.
+    Uploads a file to Eucalyptus S3.
 
     Parameters
     ----------
@@ -445,7 +445,7 @@ def upload_to_s3(filepath, filename, job_id):
     Returns
     -------
     str
-        Amazon S3 key generated for this file
+        Eucalyptus S3 key generated for this file
     """
     s3_file_key = generate_s3_file_key(job_id, filename)
 
@@ -469,7 +469,7 @@ def s3_to_df(s3_file_key):
     Parameters
     ----------
     s3_file_key: str
-        Amazon S3 file key
+        Eucalyptus S3 file key
 
     Returns
     -------
