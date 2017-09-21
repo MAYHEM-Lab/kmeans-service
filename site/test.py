@@ -31,7 +31,7 @@ def run_kmeans(data, n_clusters, covar_type, covar_tied, n_init):
     """
     #print('running kmeans for k={} init={} covar={} tied={}'.format(n_clusters,n_init,covar_type,covar_tied))
     kmeans = sf_kmeans.SF_KMeans(n_clusters=n_clusters, covar_type=covar_type, covar_tied=covar_tied, n_init=n_init,
-                                 verbose=0)
+                                 verbose=0,min_members=50)
     kmeans.fit(data)
     aic, bic = kmeans.aic(data), kmeans.bic(data)
     labels = [int(l) for l in kmeans.labels_]
