@@ -1,17 +1,3 @@
-## Localhost Server Setup
-1. Install and run RabbitMQ and MongoDB.
-2. Run the development server
-```bash
-virtualenv venv --python=python3
-source venv/bin/activate
-pip install -r requirements.txt
-python frontend.py
-```
-3. Run Celery worker.
-```bash
-celery worker -A worker --loglevel=info
-```
-
 ## Production Server Setup from Scratch
 There are four servers needed for this web service.
 1. Frontend  
