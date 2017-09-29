@@ -335,10 +335,7 @@ class SF_KMeans(object):
 
         if self.covar_type == 'global':
             if self._global_covar_matrices is None:
-                if data.shape[1] == 1:
-                    covar = np.array([[np.cov(data.T)]])
-                else:
-                    covar = np.cov(data.T)
+                covar = np.cov(data.T, bias=True).reshape(data.shape[1], data.shape[1])
                 assert covar.shape == (data.shape[1], data.shape[1])
                 self._global_covar_matrices = [covar] * self.n_clusters
             return self._global_covar_matrices
@@ -347,7 +344,7 @@ class SF_KMeans(object):
             for k in range(n_clusters):
                 if nks[k] > self._min_members:
                     data_k = data[labels==k]
-                    covar = np.cov(data_k.T, bias=True)
+                    covar = np.cov(data_k.T, bias=True).reshape(data_k.shape[1], data_k.shape[1])
                     covariances_v[k] = covar
 
         elif self.covar_type == 'full' and self.covar_tied:
@@ -355,7 +352,7 @@ class SF_KMeans(object):
             for k in range(n_clusters):
                 if nks[k] > self._min_members:
                     data_k = data[labels==k]
-                    covar += np.cov(data_k.T, bias=True)
+                    covar += np.cov(data_k.T, bias=True).reshape(data_k.shape[1], data_k.shape[1])
             covar /= n_clusters
             covariances_v[:] = covar
 
@@ -363,7 +360,7 @@ class SF_KMeans(object):
             for k in range(n_clusters):
                 if nks[k] > self._min_members:
                     data_k = data[labels==k]
-                    covar = np.cov(data_k.T, bias=True)
+                    covar = np.cov(data_k.T, bias=True).reshape(data_k.shape[1], data_k.shape[1])
                     covar *= np.eye(n_features)  # zero out non-diagonal elements
                     covariances_v[k] = covar
 
@@ -372,7 +369,7 @@ class SF_KMeans(object):
             for k in range(n_clusters):
                 if nks[k] > self._min_members:
                     data_k = data[labels==k]
-                    covar += np.cov(data_k.T, bias=True)
+                    covar += np.cov(data_k.T, bias=True).reshape(data_k.shape[1], data_k.shape[1])
             covar /= n_clusters
             covar *= np.eye(n_features)  # zero out non-diagonal elements
             covariances_v[:] = covar
