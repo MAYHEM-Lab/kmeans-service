@@ -3,9 +3,18 @@
 {% extends "base.html" %}
 {% block title %}Centaurus - Home{% endblock %}
 {% block head %}
-<script src="{{url_for('static', filename='js/papaparse.min.js')}}"></script>
+<script src="{{url_for('static', filename='js/papaparse.min.js')}}" xmlns="http://www.w3.org/1999/html"></script>
 {% endblock %}
 {% block body %}
+
+
+<script type="text/javascript">
+function togglediv(id, id2) {
+    var div = document.getElementById(id);
+    div.style.display = div.style.display == "none" ? "unset" : "none";
+    id2.checked=false;
+}
+</script>
 
 <div class="jumbotron">
   <h1 class="display-4">K-Means as a Service</h1>
@@ -22,61 +31,6 @@
     <form method="post" enctype="multipart/form-data" action="{{url_for('submit')}}">
     <!--<form method="post" enctype="multipart/form-data">-->
       <div class="form-group row">
-        <label for="n_experiments" class="col-2 col-form-label">n_exp:</label>
-        <div class="col-10">
-          <input class="form-control" type="number" value="3" id="n_experiments" name="n_experiments" min="1" max="100">
-          <small id="n_experiments_help" class="form-text text-muted">
-            Number of times the analysis is run to create confidence intervals. Min: 1. Max: 100.
-          </small>
-        </div>
-      </div>
-      <div class="form-group row">
-        <label for="max_k" class="col-2 col-form-label">max_k:</label>
-        <div class="col-10">
-          <input class="form-control" type="number" value="10" id="max_k" name="max_k" min="1" max="15">
-          <small id="max_k_help" class="form-text text-muted">
-            Maximum number of clusters to fit to the data. Min: 1. Max: 15.
-          </small>
-        </div>
-      </div>
-      <div class="form-group row">
-        <label for="n_init" class="col-2 col-form-label">n_init:</label>
-        <div class="col-10">
-          <input class="form-control" type="number" value="10" id="n_init" name="n_init" min="1" max="100">
-          <small id="n_init_help" class="form-text text-muted">
-            Number of times to initialize each fit. Min: 1. Max: 100.
-          </small>
-        </div>
-      </div>
-      <div class="form-group row">
-        <label for="covars" class="col-2 col-form-label">covars:</label>
-        <div class="col-10">
-          <select multiple class="form-control" id="covars" name="covars">
-            <option value="full-tied" selected>Full-Tied</option>
-            <option value="full-untied" selected>Full-Untied</option>
-            <option value="diag-tied" selected>Diagonal-Tied</option>
-            <option value="diag-untied" selected>Diagonal-Untied</option>
-            <option value="spher-tied" selected>Spherical-Tied</option>
-            <option value="spher-untied" selected>Spherical-Untied</option>
-          </select>
-          <small id="covars_help" class="form-text text-muted">Covariance matrices to use for the analysis.</small>
-        </div>
-      </div>
-      <div class="form-group row">
-        <label for="scale" class="col-sm-2">scale:</label>
-        <div class="col-sm-10">
-          <div class="form-check">
-            <label class="form-check-label">
-              <input class="form-check-input" type="checkbox" id="scale" name="scale" checked>
-            </label>
-            <small class="form-text text-muted">
-            Scale the data so that each dimension has zero mean and unit standard deviation.
-            This option is recommended.
-          </small>
-          </div>
-        </div>
-      </div>
-      <div class="form-group row">
         <label for="file" class="col-2 col-form-label">file:</label>
         <div class="col-10">
           <input type="file" class="form-control-file" id="file" name="file" onchange="$('#columns').html('');parseFile();">
@@ -86,15 +40,72 @@
           </small>
         </div>
       </div>
-      <div class="form-group row" >
-        <label for="columns" class="col-2 col-form-label">cols:</label>
-        <div class="col-10">
-          <select multiple class="form-control" id="columns" name="columns">
-          </select>
-          <small id="columns_help" class="form-text text-muted">
-            Columns from the file to be used for clustering.
-            "Longitude" and "Latitude" are excluded by default, but can be added above.
-          </small>
+      <div id="advanced_settings" style="display: none;">
+        <div class="form-group row">
+          <label for="n_experiments" class="col-2 col-form-label">n_exp:</label>
+          <div class="col-10">
+            <input class="form-control" type="number" value="3" id="n_experiments" name="n_experiments" min="1" max="100">
+            <small id="n_experiments_help" class="form-text text-muted">
+              Number of times the analysis is run to create confidence intervals. Min: 1. Max: 100.
+            </small>
+          </div>
+        </div>
+        <div class="form-group row">
+          <label for="max_k" class="col-2 col-form-label">max_k:</label>
+          <div class="col-10">
+            <input class="form-control" type="number" value="10" id="max_k" name="max_k" min="1" max="15">
+            <small id="max_k_help" class="form-text text-muted">
+              Maximum number of clusters to fit to the data. Min: 1. Max: 15.
+            </small>
+          </div>
+        </div>
+        <div class="form-group row">
+          <label for="n_init" class="col-2 col-form-label">n_init:</label>
+          <div class="col-10">
+            <input class="form-control" type="number" value="10" id="n_init" name="n_init" min="1" max="100">
+            <small id="n_init_help" class="form-text text-muted">
+              Number of times to initialize each fit. Min: 1. Max: 100.
+            </small>
+          </div>
+        </div>
+        <div class="form-group row">
+          <label for="covars" class="col-2 col-form-label">covars:</label>
+          <div class="col-10">
+            <select multiple class="form-control" id="covars" name="covars">
+              <option value="full-tied" selected>Full-Tied</option>
+              <option value="full-untied" selected>Full-Untied</option>
+              <option value="diag-tied" selected>Diagonal-Tied</option>
+              <option value="diag-untied" selected>Diagonal-Untied</option>
+              <option value="spher-tied" selected>Spherical-Tied</option>
+              <option value="spher-untied" selected>Spherical-Untied</option>
+            </select>
+            <small id="covars_help" class="form-text text-muted">Covariance matrices to use for the analysis.</small>
+          </div>
+        </div>
+        <div class="form-group row">
+          <label for="scale" class="col-sm-2">scale:</label>
+          <div class="col-sm-10">
+            <div class="form-check">
+              <label class="form-check-label">
+                <input class="form-check-input" type="checkbox" id="scale" name="scale" checked>
+              </label>
+              <small class="form-text text-muted">
+              Scale the data so that each dimension has zero mean and unit standard deviation.
+              This option is recommended.
+            </small>
+            </div>
+          </div>
+        </div>
+        <div class="form-group row">
+          <label for="columns" class="col-2 col-form-label">cols:</label>
+          <div class="col-10">
+            <select multiple class="form-control" id="columns" name="columns">
+            </select>
+            <small id="columns_help" class="form-text text-muted">
+              Columns from the file to be used for clustering.
+              "Longitude" and "Latitude" are excluded by default, but can be added above.
+            </small>
+          </div>
         </div>
       </div>
 
@@ -105,6 +116,12 @@
         </div>
       </div>
     </form>
+     <div class="form-group row">
+        <label for="advanced" class="col-2 col-form-label"></label>
+        <div class="col-10">
+            <input type="checkbox"  name="AdvancedSettings"  id="advanced" onclick="togglediv('advanced_settings', 'advanced')"> Show advanced settings</input>
+        </div>
+      </div>
   </div>
 
   <div class="col-md-6">

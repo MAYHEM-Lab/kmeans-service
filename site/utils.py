@@ -285,6 +285,55 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics, show_ticks=Tr
     plt.tight_layout()
     return fig
 
+def plot_single_cluster_fig(data, columns, covar_type_tied_labels_k_bics, show_ticks=True):
+    """
+    Creates cluster plot for the best label assignment based on BIC score.
+
+    Parameters
+    ----------
+    data: Pandas DataFrame
+        User data file as a Pandas DataFrame
+    columns: list(str)
+        Column numbers from `data` to use as the x and y axes for the plot. Only the first two elements of the list
+        are used.
+    covar_type_tied_labels_k_bics: list((str, bool, list(int), int, float))
+        [(covar_type, covar_tied, labels, k, bic), ... ]
+    show_ticks: bool
+        Show or hide tick marks on x and y axes.
+
+    Returns
+    -------
+    Matplotlib Figure object.
+
+    """
+    sns.set(context='talk', style='white')
+    columns = columns[:2]
+
+    fig = plt.figure()
+    lim_left = data[columns[0]].min()
+    lim_right = data[columns[0]].max()
+    lim_bottom = data[columns[1]].min()
+    lim_top = data[columns[1]].max()
+
+    covar_type_tied_labels_k_bics = list(covar_type_tied_labels_k_bics)
+
+    bics = [x[4] for x in covar_type_tied_labels_k_bics]
+    max_bic = max(bics)
+
+    for covar_type, covar_tied, labels, k, bic in covar_type_tied_labels_k_bics:
+        if bic == max_bic:
+            plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow, s=10)
+            plt.xlabel(columns[0])
+            plt.ylabel(columns[1])
+            plt.xlim(left=lim_left, right=lim_right)
+            plt.ylim(bottom=lim_bottom, top=lim_top)
+            if show_ticks is False:
+                plt.xticks([])
+                plt.yticks([])
+            title = "K={}\nBIC: {:,.1f}".format(k, bic)
+            plt.title(title)
+    plt.tight_layout()
+    return fig
 
 def plot_correlation_fig(data):
     """

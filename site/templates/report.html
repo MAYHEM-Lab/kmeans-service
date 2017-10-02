@@ -7,6 +7,79 @@
     <br> File: "{{job.filename}}". Columns used: [{{job.columns|join(', ')}}].
     <br>n_exp: {{job.n_experiments}}. max_k: {{job.max_k}}. n_tasks: {{job.n_tasks}}. scale: {{job.scale}}.
   </p>
+
+
+<script type="text/javascript">
+function togglediv(id, id2) {
+    var div = document.getElementById(id);
+    div.style.display = div.style.display == "none" ? "unset" : "none";
+    id2.checked=false;
+}
+</script>
+
+<h3>Cluster Plots</h3>
+  <p>
+    Recommended cluster assignments are visualized below using the columns {{viz_columns[0]}} and {{viz_columns[1]}}.
+  </p>
+  <div class="form-group row">
+    <div class="form-inline" id="cluster_plot_reload_form_single">
+      <div class="col-2">
+        <label for="x_axis" class="col-form-label">x-axis:</label>
+      </div>
+      <div class="col-3">
+        <select class="form-control form-control-sm" id="x_axis_single" name="x_axis">
+          {% for column in columns %}
+          <option value="{{column}}" {%if column==viz_columns[0] %} selected {% endif %}>{{column}}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-2">
+        <label for="y_axis" class="col-form-label">y-axis:</label>
+      </div>
+      <div class="col-3">
+        <select class="form-control form-control-sm" id="y_axis_single" name="y_axis">
+          {% for column in columns %}
+          <option value="{{column}}" {%if column==viz_columns[1] %} selected {% endif %}>{{column}}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-2">
+        <button class="btn btn-secondary btn-sm" onclick="reload_cluster_plot()">Reload</button>
+      </div>
+    </div>
+  </div>
+  <div id="cluster_plot_loading_single">
+      <i class="fa fa-spinner fa-pulse fa-fw"></i>
+      <span>Loading Cluster Plots ...</span>
+  </div>
+  <div id="cluster_plot_loading_error_single" class="alert alert-warning alert-dismissible fade show" role="alert" style="display: none;">
+    <button type="button" class="close" aria-label="Close"
+            onclick="$('#cluster_plot_loading_error').hide(); $('#cluster_plot_loading').show();
+            $('#cluster_plot_img').attr('src', $('#cluster_plot_img').attr('src'))">
+      <span class="fa fa-refresh" aria-hidden="true"></span>
+    </button>
+    <strong>Error</strong> loading Cluster Plots.
+  </div>
+  <img id="cluster_plot_img_single" src="{{url_for('plot_cluster', job_id=job_id, x_axis=viz_columns[0], y_axis=viz_columns[1],
+  min_members=min_members, plot_best='True')}}" class="img-fluid"
+       onload="$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').hide();$('#cluster_plot_img').show();"
+  onerror="$('#cluster_plot_img').hide();$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').show();"/>
+  <br><br>
+
+<p class="lead">Download cluster assignments based on the best (highest) BIC score:</p>
+<a href="{{url_for('download_labels', job_id=job_id, task_id=best_bic_task_id)}}">
+  <button class="btn btn-primary">
+    <i class="fa fa-download"> Download </i>
+  </button>
+</a>
+
+<div class="form-group row">
+  <div class="col-2">
+      <input type="checkbox"  name="AdvancedSetting"  id="advanced" onclick="togglediv('advanced_settings', 'advanced')"> Show advanced report</input>
+  </div>
+</div>
+
+<div id="advanced_settings" style="display: none;">
   <p class="lead">Recommended number of clusters based on the best (highest) BIC score:</p>
   <table class="table table-bordered">
     <tbody>
@@ -120,7 +193,7 @@
     <strong>Error</strong> loading Cluster Plots.
   </div>
   <img id="cluster_plot_img" src="{{url_for('plot_cluster', job_id=job_id, x_axis=viz_columns[0], y_axis=viz_columns[1],
-  min_members=min_members)}}" class="img-fluid"
+  min_members=min_members, plot_best='Flase')}}" class="img-fluid"
        onload="$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').hide();$('#cluster_plot_img').show();"
   onerror="$('#cluster_plot_img').hide();$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').show();"/>
   <br><br>
@@ -191,6 +264,7 @@
   <img id="count_plot_img" src="{{url_for('plot_count', job_id=job_id, min_members=min_members)}}" class="img-fluid"
        onload="$('#count_plot_loading').hide();$('#count_plot_loading_error').hide();$('#count_plot_img').show();"
   onerror="$('#count_plot_img').hide();$('#count_plot_loading').hide();$('#count_plot_loading_error').show();"/>
+  </div>
 
 {% endblock %}
 {% block scripts %}

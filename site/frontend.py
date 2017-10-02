@@ -20,6 +20,7 @@ Eucalyptus S3  MongoDB  <-------+   |
 Author: Angad Gill
 """
 import matplotlib
+import numpy as np
 matplotlib.use('Agg')  # needed to ensure that plotting works on a server with no display
 
 import os
@@ -29,7 +30,7 @@ from flask_app import app
 from werkzeug.utils import secure_filename
 
 from utils import format_date_time, tasks_to_best_results, task_stats, filter_by_min_members
-from utils import plot_cluster_fig, plot_aic_bic_fig, plot_count_fig, plot_correlation_fig, fig_to_png
+from utils import plot_cluster_fig, plot_single_cluster_fig, plot_aic_bic_fig, plot_count_fig, plot_correlation_fig, fig_to_png
 from utils import allowed_file, upload_to_s3, s3_to_df
 
 from database import mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks, mongo_get_tasks_by_args
@@ -173,10 +174,15 @@ def report(job_id=None):
     for covar_type, covar_tied, task_id in zip(covar_types, covar_tieds, task_ids):
         covar_type_tied_task_id[covar_type.capitalize()][['Untied', 'Tied'][covar_tied]] = task_id
 
+    # record data about the best clustering
+    best_bic_k = bics[np.argmax(bics)]
+    best_bic_task_id = task_ids[np.argmax(bics)]
+
     return render_template('report.html', job_id=job_id, job=job, min_members=min_members,
                            covar_type_tied_k=covar_type_tied_k, covar_type_tied_task_id=covar_type_tied_task_id,
                            columns=columns, viz_columns=viz_columns, spatial_columns=spatial_columns,
-                           start_time_date=start_time_date, start_time_clock=start_time_clock)
+                           start_time_date=start_time_date, start_time_clock=start_time_clock, best_bic_k=best_bic_k,
+                           best_bic_task_id=best_bic_task_id)
 
 
 @app.route('/plot/aic_bic/')
@@ -260,6 +266,7 @@ def plot_cluster():
     y_axis = request.args.get('y_axis')
     show_ticks = request.args.get('show_ticks', 'True') == 'True'
     min_members = int(request.args.get('min_members', None))
+    plot_best = request.args.get('plot_best', 'True') == 'True'
     if job_id is None or x_axis is None or y_axis is None:
         return None
 
@@ -272,7 +279,10 @@ def plot_cluster():
     s3_file_key = job['s3_file_key']
     viz_columns = [x_axis, y_axis]
     data = s3_to_df(s3_file_key)
-    fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks, bics), show_ticks)
+    if plot_best:
+        fig = plot_single_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks, bics), show_ticks)
+    else:
+        fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks, bics), show_ticks)
     cluster_plot = fig_to_png(fig)
     response = make_response(cluster_plot.getvalue())
     response.mimetype = 'image/png'
