@@ -140,7 +140,7 @@ def report(job_id=None):
 
     # all tasks are done
     if min_members is None:
-        min_members = 10
+        min_members = 40
     else:
         min_members = int(min_members)
     tasks = filter_by_min_members(tasks, min_members=min_members)
