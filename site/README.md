@@ -154,6 +154,7 @@ pip install -r requirements.txt
 sudo cp /home/ubuntu/kmeans-service/site/worker.conf /etc/init/worker.conf
 #if using systemd
 sudo cp /home/ubuntu/kmeans-service/site/util/worker.service /etc/systemd/system/
+sudo cp /home/ubuntu/kmeans-service/site/util/celery-teardown.sh /usr/sbin/
 ```
 9. Set (or replace) values in `config.py`:
 ```
