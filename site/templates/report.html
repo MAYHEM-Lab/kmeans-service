@@ -68,13 +68,13 @@ function togglediv(id, id2) {
 
 <p class="lead">Download cluster assignments based on the best (highest) BIC score:</p>
 <a href="{{url_for('download_labels', job_id=job_id, task_id=best_bic_task_id)}}">
-  <button class="btn btn-primary">
-    <i class="fa fa-download"> Download </i>
+  <button class="btn btn-secondary btn-lg">
+    <i class="fa fa-download"></i>
   </button>
 </a>
 
 <div class="form-group row">
-  <div class="col-2">
+  <div class="lead">
       <input type="checkbox"  name="AdvancedSetting"  id="advanced" onclick="togglediv('advanced_settings', 'advanced')"> Show advanced report</input>
   </div>
 </div>
@@ -193,7 +193,7 @@ function togglediv(id, id2) {
     <strong>Error</strong> loading Cluster Plots.
   </div>
   <img id="cluster_plot_img" src="{{url_for('plot_cluster', job_id=job_id, x_axis=viz_columns[0], y_axis=viz_columns[1],
-  min_members=min_members, plot_best='Flase')}}" class="img-fluid"
+  min_members=min_members, plot_best='False')}}" class="img-fluid"
        onload="$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').hide();$('#cluster_plot_img').show();"
   onerror="$('#cluster_plot_img').hide();$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').show();"/>
   <br><br>

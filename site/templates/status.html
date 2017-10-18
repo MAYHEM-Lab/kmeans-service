@@ -55,6 +55,7 @@
         <th>BIC</th>
         <th>AIC</th>
         <th>Status</th>
+        <th>Download</th>
       </tr>
     </thead>
     <tbody>
@@ -72,6 +73,13 @@
         <td>{% if task.aic %}{{'{:.2f}'.format(task.aic)}}{%endif%}</td>
         <td {%if task.task_status=="error" %} class="table-danger" {%endif%}>
           {{task.task_status | capitalize}}
+        </td>
+        <td>
+          <a href="{{url_for('download_labels', job_id=job_id, task_id=task.task_id)}}">
+          <button class="btn btn-secondary btn-sm pull-right">
+            <i class="fa fa-download"></i>
+          </button>
+        </a>
         </td>
       </tr>
       {% endfor %}
