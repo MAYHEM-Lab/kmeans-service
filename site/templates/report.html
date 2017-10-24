@@ -62,8 +62,8 @@ function togglediv(id, id2) {
   </div>
   <img id="cluster_plot_img_single" src="{{url_for('plot_cluster', job_id=job_id, x_axis=viz_columns[0], y_axis=viz_columns[1],
   min_members=min_members, plot_best='True')}}" class="img-fluid"
-       onload="$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').hide();$('#cluster_plot_img').show();"
-  onerror="$('#cluster_plot_img').hide();$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').show();"/>
+       onload="$('#cluster_plot_loading_single').hide();$('#cluster_plot_loading_error_single').hide();$('#cluster_plot_img_single').show();"
+  onerror="$('#cluster_plot_img_single').hide();$('#cluster_plot_loading_single').hide();$('#cluster_plot_loading_error_single').show();"/>
   <br><br>
 
 <p class="lead">Download cluster assignments based on the best (highest) BIC score:</p>
