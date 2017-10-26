@@ -29,10 +29,9 @@ from flask import request, render_template, redirect, url_for, flash, make_respo
 from flask_app import app
 from werkzeug.utils import secure_filename
 
-from utils import format_date_time, tasks_to_best_results, task_stats, filter_by_min_members
+from utils import format_date_time, tasks_to_best_results, task_stats, filter_by_min_members, tasks_to_best_task
 from utils import plot_cluster_fig, plot_single_cluster_fig, plot_aic_bic_fig, plot_count_fig, plot_correlation_fig, fig_to_png
-from utils import allowed_file, upload_to_s3, s3_to_df
-
+from utils import allowed_file, upload_to_s3, s3_to_df, job_to_data, get_viz_columns
 from database import mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks, mongo_get_tasks_by_args
 from database import mongo_add_s3_file_key, mongo_get_task
 from worker import create_tasks, rerun_task
@@ -147,13 +146,7 @@ def report(job_id=None):
     start_time_date, start_time_clock = format_date_time(job['start_time'])
 
     covar_types, covar_tieds, ks, labels, bics, task_ids = tasks_to_best_results(tasks)
-
-    if x_axis is None or y_axis is None:
-        # Visualize the first two columns that are not on the exclude list
-        viz_columns = [c for c in job['columns'] if c.lower().strip() not in EXCLUDE_COLUMNS][:2]
-    else:
-        viz_columns = [x_axis, y_axis]
-
+    viz_columns = get_viz_columns(job, x_axis, y_axis)
     data = s3_to_df(job['s3_file_key'])
     columns = list(data.columns)
     spatial_columns = [c for c in columns if c.lower() in SPATIAL_COLUMNS][:2]
@@ -243,6 +236,42 @@ def plot_count():
     return response
 
 
+@app.route('/report/cluster')
+@app.route('/report/cluster/')
+def report_cluster():
+    """
+    Generate the Cluster plot as a PNG
+
+    Parameters
+    ----------
+    job_id: str
+    x_axis: str
+        Name of column from user dataset to be used for the x axis of the plot
+    y_axis: str
+        Name of column from user dataset to be used for the y axis of the plot
+
+    Returns
+    -------
+    image/png
+    """
+    job_id = request.args.get('job_id')
+    task_id = int(request.args.get('task_id'))
+    x_axis = request.args.get('x_axis')
+    y_axis = request.args.get('y_axis')
+    show_ticks = request.args.get('show_ticks', 'True') == 'True'
+    if job_id is None or task_id is None:
+        return None
+    print("reporting")
+    data = job_to_data(job_id)
+    columns = list(data.columns)
+    task = mongo_get_task(job_id, task_id)
+    viz_columns = get_viz_columns(mongo_get_job(job_id), x_axis, y_axis)
+
+    return render_template('visualization.html', job_id=job_id,
+                           task_id=task_id, viz_columns=viz_columns,
+                           columns=columns)
+
+
 @app.route('/plot/cluster')
 @app.route('/plot/cluster/')
 def plot_cluster():
@@ -269,20 +298,54 @@ def plot_cluster():
     plot_best = request.args.get('plot_best', 'True') == 'True'
     if job_id is None or x_axis is None or y_axis is None:
         return None
-
-    job = mongo_get_job(job_id)
+    print("plotting")
     tasks = mongo_get_tasks(job_id)
-
     if min_members is not None:
         tasks = filter_by_min_members(tasks, min_members)
     covar_types, covar_tieds, ks, labels, bics, task_ids = tasks_to_best_results(tasks)
-    s3_file_key = job['s3_file_key']
     viz_columns = [x_axis, y_axis]
-    data = s3_to_df(s3_file_key)
+    data = job_to_data(job_id)
     if plot_best:
-        fig = plot_single_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks, bics), show_ticks)
+        k, bic, labels, task_id = tasks_to_best_task(tasks)
+        fig = plot_single_cluster_fig(data, viz_columns, labels, bic, show_ticks)
     else:
         fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks, bics), show_ticks)
+    cluster_plot = fig_to_png(fig)
+    response = make_response(cluster_plot.getvalue())
+    response.mimetype = 'image/png'
+    return response
+
+@app.route('/viz/cluster')
+@app.route('/viz/cluster/')
+def visualize_cluster():
+    """
+    Generate the Cluster plot with visualization options
+
+    Parameters
+    ----------
+    job_id: str
+    task_id: str
+    x_axis: str - column from the dataset to be used for plotting
+    y_axis: str - column from the dataset to be used for plotting
+
+    Returns
+    -------
+    html
+    """
+    job_id = request.args.get('job_id')
+    task_id = int(request.args.get('task_id'))
+    x_axis = request.args.get('x_axis')
+    y_axis = request.args.get('y_axis')
+    show_ticks = request.args.get('show_ticks', 'True') == 'True'
+    if job_id is None or task_id is None:
+        return None
+
+    data = job_to_data(job_id)
+    task = mongo_get_task(job_id, task_id)
+    viz_columns = get_viz_columns(mongo_get_job(job_id), x_axis, y_axis)
+    fig = plot_single_cluster_fig(data, viz_columns, task['labels'],
+                                  task['bic'],
+                                  show_ticks)
     cluster_plot = fig_to_png(fig)
     response = make_response(cluster_plot.getvalue())
     response.mimetype = 'image/png'
@@ -380,6 +443,7 @@ def submit():
     -------
     redirects to index
     """
+    print("submit")
     if request.method == 'POST':
         # Ensure that file is part of the post
         if 'file' not in request.files:
@@ -418,7 +482,7 @@ def submit():
 
             # Create all tasks asynchronously
             create_tasks.delay(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_key, scale)
-            # print('creating all tasks asynchronously')
+            print('creating all tasks asynchronously')
             flash('Your request with job ID "{}" and {} tasks are being submitted. Refresh this page for updates.'.format(
                 job_id, n_tasks), category='success')
 

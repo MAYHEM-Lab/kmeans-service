@@ -55,7 +55,8 @@
         <th>BIC</th>
         <th>AIC</th>
         <th>Status</th>
-        <th>Download</th>
+        <th>Download Labels</th>
+        <th>Visualize</th>
       </tr>
     </thead>
     <tbody>
@@ -76,8 +77,15 @@
         </td>
         <td>
           <a href="{{url_for('download_labels', job_id=job_id, task_id=task.task_id)}}">
-          <button class="btn btn-secondary btn-sm pull-right">
-            <i class="fa fa-download"></i>
+          <button class="btn btn-secondary" >
+            <i class="fa fa-download" ></i>
+          </button>
+        </a>
+        </td>
+        <td>
+          <a href="{{url_for('report_cluster', job_id=job_id, task_id=task.task_id)}}">
+          <button type="button" class="btn btn-secondary">
+            <i class="fa fa-file-picture-o" aria-hidden="true"></i>
           </button>
         </a>
         </td>

@@ -55,6 +55,7 @@ def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_
     # Add tasks to DB
     task_id = 0
     tasks = []
+    print("creating tasks")
     for _ in range(n_experiments):
         for k in range(1, max_k + 1):
             for covar in covars:
@@ -66,7 +67,8 @@ def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_
                 tasks += [task]
                 task_id += 1
 
-    reponse = mongo_no_context_add_tasks(tasks)
+    response = mongo_no_context_add_tasks(tasks)
+    print(response)
 
     # Start workers
     task_id = 0

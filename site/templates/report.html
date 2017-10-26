@@ -17,37 +17,10 @@ function togglediv(id, id2) {
 }
 </script>
 
-<h3>Cluster Plots</h3>
+<h3>Cluster Plot</h3>
   <p>
     Recommended cluster assignments are visualized below using the columns {{viz_columns[0]}} and {{viz_columns[1]}}.
   </p>
-  <div class="form-group row">
-    <div class="form-inline" id="cluster_plot_reload_form_single">
-      <div class="col-2">
-        <label for="x_axis" class="col-form-label">x-axis:</label>
-      </div>
-      <div class="col-3">
-        <select class="form-control form-control-sm" id="x_axis_single" name="x_axis">
-          {% for column in columns %}
-          <option value="{{column}}" {%if column==viz_columns[0] %} selected {% endif %}>{{column}}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-2">
-        <label for="y_axis" class="col-form-label">y-axis:</label>
-      </div>
-      <div class="col-3">
-        <select class="form-control form-control-sm" id="y_axis_single" name="y_axis">
-          {% for column in columns %}
-          <option value="{{column}}" {%if column==viz_columns[1] %} selected {% endif %}>{{column}}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-2">
-        <button class="btn btn-secondary btn-sm" onclick="reload_cluster_plot()">Reload</button>
-      </div>
-    </div>
-  </div>
   <div id="cluster_plot_loading_single">
       <i class="fa fa-spinner fa-pulse fa-fw"></i>
       <span>Loading Cluster Plots ...</span>
@@ -55,7 +28,7 @@ function togglediv(id, id2) {
   <div id="cluster_plot_loading_error_single" class="alert alert-warning alert-dismissible fade show" role="alert" style="display: none;">
     <button type="button" class="close" aria-label="Close"
             onclick="$('#cluster_plot_loading_error').hide(); $('#cluster_plot_loading').show();
-            $('#cluster_plot_img').attr('src', $('#cluster_plot_img').attr('src'))">
+            $('#cluster_plot_img_single').attr('src', $('#cluster_plot_img_single').attr('src'))">
       <span class="fa fa-refresh" aria-hidden="true"></span>
     </button>
     <strong>Error</strong> loading Cluster Plots.
