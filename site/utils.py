@@ -146,7 +146,7 @@ def tasks_to_best_task(tasks):
     """
     # Filter list of dicts to reduce the size of Pandas DataFrame
     _, _, ks, labels, bics, task_ids = tasks_to_best_results(tasks)
-    index = np.argmin(np.array(bics))
+    index = np.argmax(np.array(bics))
     return ks[index], bics[index], labels[index], task_ids[index]
 
 
@@ -306,7 +306,7 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics, show_ticks=Tr
     return fig
 
 
-def plot_single_cluster_fig(data, columns, labels, bic, show_ticks=True):
+def plot_single_cluster_fig(data, columns, labels, bic, k, show_ticks=False):
     """
     Creates cluster plot for the best label assignment based on BIC score.
 
@@ -340,7 +340,7 @@ def plot_single_cluster_fig(data, columns, labels, bic, show_ticks=True):
     if show_ticks is False:
         plt.xticks([])
         plt.yticks([])
-    title = "BIC: {:,.1f}".format(bic)
+    title = "K={}\nBIC: {:,.1f}".format(k, bic)
     plt.title(title)
     plt.tight_layout()
     return fig
@@ -560,8 +560,25 @@ def job_to_data(job_id):
 
 
 def get_viz_columns(job, x_axis, y_axis):
-    if x_axis is None or y_axis is None:
-        # Visualize the first two columns that are not on the exclude list
-        return [c for c in job['columns'] if c.lower().strip() not in EXCLUDE_COLUMNS][:2]
-    else:
+    # Return user selected visualization columns
+    if x_axis is not None and y_axis is not None:
         return [x_axis, y_axis]
+    # Return the first two clustering columns
+    job_columns = job['columns']
+    preferred_columns = [c for c in job_columns if c.lower().strip() not
+                         in EXCLUDE_COLUMNS][:2]
+    if len(preferred_columns) == 2:
+        return preferred_columns
+    if len(job_columns) >= 2:
+        return job_columns[:2]
+    # Return the first two data columns
+    data = job_to_data(job['_id'])
+    all_columns = data.columns
+    preferred_columns = [c for c in all_columns if c.lower().strip() not
+                         in EXCLUDE_COLUMNS][:2]
+    if len(preferred_columns) == 2:
+        return preferred_columns
+    if len(all_columns) >= 2:
+        return all_columns[:2]
+    # Case with only 1 column
+    raise ValueError('Too few columns')

@@ -51,6 +51,9 @@ function togglediv(id, id2) {
           </small>
         </div>
       </div>
+      <div class="form-group row">
+        <input type ="hidden" id="all_columns" name="all_columns" >
+      </div>
       <div id="advanced_settings" style="display: none;">
         <div class="form-group row">
           <label for="n_experiments" class="col-2 col-form-label">n_exp:</label>
@@ -275,11 +278,11 @@ function togglediv(id, id2) {
             $('#columns option')[i].value = c;
             if($.inArray(c.toLowerCase().trim(), excludeColumns) >= 0){
                 $('#columns option')[i].selected = false;
-
             } else {
                 $('#columns option')[i].selected = true;
             }
         });
+        document.getElementById("all_columns").value = results.data[0]
     }
 
     function errorFn(err, file) {

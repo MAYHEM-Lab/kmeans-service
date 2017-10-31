@@ -16,7 +16,7 @@
 
 {% endblock %}
 {% block body %}
-  <h1>Status for Job ID: {{job_id}}</h1>
+  <h3>Status for Job ID: {{job_id}}</h3>
   <p class="text-muted">
     Submitted at {{start_time_clock}} on {{start_time_date}} (UTC)
     <br> File: "{{job.filename}}". Columns used: [{{job.columns|join(', ')}}].
@@ -39,7 +39,7 @@
     Done: {{stats['n_tasks_done']}} ({{stats['per_done']}}%).
   </p>
   {% if stats['n_tasks']==stats['n_tasks_done']%}
-    <p><a class="btn btn-primary" href="{{url_for('report', job_id=job_id)}}" role="button">All Done! View report »</a></p>
+    <p><a class="btn btn-primary" href="{{url_for('report_task', job_id=job_id, plot_best=True)}}" role="button">All Done! View report »</a> <a class="btn btn-info" href="{{url_for('report', job_id=job_id)}}" role="button">View detailed job report »</a></p>
   {% endif %}
 
   <h3>Details:</h3>
@@ -83,7 +83,7 @@
         </a>
         </td>
         <td>
-          <a href="{{url_for('report_cluster', job_id=job_id, task_id=task.task_id)}}">
+          <a href="{{url_for('report_task', job_id=job_id, task_id=task.task_id, plot_best=False)}}">
           <button type="button" class="btn btn-secondary">
             <i class="fa fa-file-picture-o" aria-hidden="true"></i>
           </button>

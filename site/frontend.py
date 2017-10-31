@@ -21,7 +21,7 @@ Author: Angad Gill
 """
 import matplotlib
 import numpy as np
-matplotlib.use('Agg')  # needed to ensure that plotting works on a server with no display
+matplotlib.use('Agg')  # ensure that plotting works on a server with no display
 
 import os
 
@@ -86,8 +86,10 @@ def status(job_id=None):
         tasks = mongo_get_tasks(job_id)
         stats = task_stats(job['n_tasks'], tasks)
         start_time_date, start_time_clock = format_date_time(job['start_time'])
-        return render_template('status.html', job_id=job_id, stats=stats, tasks=tasks, job=job,
-                               start_time_date=start_time_date, start_time_clock=start_time_clock)
+        return render_template('status.html', job_id=job_id, stats=stats,
+                               tasks=tasks, job=job,
+                               start_time_date=start_time_date,
+                               start_time_clock=start_time_clock)
 
 
 @app.route('/report/', methods=['GET', 'POST'])
@@ -104,7 +106,8 @@ def report(job_id=None):
     y_axis: str
         Name of column from user dataset to be used for the y axis of the plot
     min_members: int, optional
-        Minimum number of members required in all clusters in an experiment to consider the experiment for the report.
+        Minimum number of members required in all clusters in an experiment to
+        consider the experiment for the report.
 
     Returns
     -------
@@ -187,7 +190,8 @@ def plot_aic_bic():
     ----------
     job_id: str
     min_members: int, optional
-        Minimum number of members required in all clusters in an experiment to consider the experiment for the report.
+        Minimum number of members required in all clusters in an experiment to
+        consider the experiment for the report.
 
     Returns
     -------
@@ -216,7 +220,8 @@ def plot_count():
     ----------
     job_id: str
     min_members: int, optional
-        Minimum number of members required in all clusters in an experiment to consider the experiment for the report.
+        Minimum number of members required in all clusters in an experiment to
+        consider the experiment for the report.
 
     Returns
     -------
@@ -236,9 +241,9 @@ def plot_count():
     return response
 
 
-@app.route('/report/cluster')
-@app.route('/report/cluster/')
-def report_cluster():
+@app.route('/report/task')
+@app.route('/report/task/')
+def report_task():
     """
     Generate the Cluster plot as a PNG
 
@@ -255,21 +260,24 @@ def report_cluster():
     image/png
     """
     job_id = request.args.get('job_id')
-    task_id = int(request.args.get('task_id'))
+    task_id = request.args.get('task_id', None)
     x_axis = request.args.get('x_axis')
     y_axis = request.args.get('y_axis')
+    plot_best = request.args.get('plot_best', 'True') == 'True'
     show_ticks = request.args.get('show_ticks', 'True') == 'True'
-    if job_id is None or task_id is None:
+    if job_id is None:
         return None
-    print("reporting")
+    if plot_best:
+        k, bic, labels, task_id = tasks_to_best_task(mongo_get_tasks(job_id))
+    if task_id is None:
+        return None
+    task_id = int(task_id)
     data = job_to_data(job_id)
     columns = list(data.columns)
-    task = mongo_get_task(job_id, task_id)
     viz_columns = get_viz_columns(mongo_get_job(job_id), x_axis, y_axis)
-
-    return render_template('visualization.html', job_id=job_id,
+    return render_template('report_task.html', job_id=job_id,
                            task_id=task_id, viz_columns=viz_columns,
-                           columns=columns)
+                           columns=columns, plot_best=plot_best)
 
 
 @app.route('/plot/cluster')
@@ -298,28 +306,23 @@ def plot_cluster():
     plot_best = request.args.get('plot_best', 'True') == 'True'
     if job_id is None or x_axis is None or y_axis is None:
         return None
-    print("plotting")
     tasks = mongo_get_tasks(job_id)
     if min_members is not None:
         tasks = filter_by_min_members(tasks, min_members)
     covar_types, covar_tieds, ks, labels, bics, task_ids = tasks_to_best_results(tasks)
     viz_columns = [x_axis, y_axis]
     data = job_to_data(job_id)
-    if plot_best:
-        k, bic, labels, task_id = tasks_to_best_task(tasks)
-        fig = plot_single_cluster_fig(data, viz_columns, labels, bic, show_ticks)
-    else:
-        fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks, bics), show_ticks)
+    fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks, bics), show_ticks)
     cluster_plot = fig_to_png(fig)
     response = make_response(cluster_plot.getvalue())
     response.mimetype = 'image/png'
     return response
 
-@app.route('/viz/cluster')
-@app.route('/viz/cluster/')
-def visualize_cluster():
+@app.route('/plot/task')
+@app.route('/plot/task/')
+def plot_task():
     """
-    Generate the Cluster plot with visualization options
+    Generate the Cluster plot with visualization options for a single task.
 
     Parameters
     ----------
@@ -327,7 +330,7 @@ def visualize_cluster():
     task_id: str
     x_axis: str - column from the dataset to be used for plotting
     y_axis: str - column from the dataset to be used for plotting
-
+    show_ticks: boolean
     Returns
     -------
     html
@@ -339,12 +342,11 @@ def visualize_cluster():
     show_ticks = request.args.get('show_ticks', 'True') == 'True'
     if job_id is None or task_id is None:
         return None
-
     data = job_to_data(job_id)
     task = mongo_get_task(job_id, task_id)
     viz_columns = get_viz_columns(mongo_get_job(job_id), x_axis, y_axis)
     fig = plot_single_cluster_fig(data, viz_columns, task['labels'],
-                                  task['bic'],
+                                  task['bic'], task['k'],
                                   show_ticks)
     cluster_plot = fig_to_png(fig)
     response = make_response(cluster_plot.getvalue())
@@ -443,7 +445,6 @@ def submit():
     -------
     redirects to index
     """
-    print("submit")
     if request.method == 'POST':
         # Ensure that file is part of the post
         if 'file' not in request.files:

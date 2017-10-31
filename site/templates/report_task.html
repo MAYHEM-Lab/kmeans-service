@@ -1,8 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Centaurus - Visualization {{job_id}}-{{task_id}} {% endblock %}
+{% block title %}Task Report{% endblock %}
 {% block body %}
-<!--{{job_id}}-{{task_id}}-->
-<h3>Cluster Plot</h3>
+<h3>Cluster Report</h3>
   <p>
     Recommended cluster assignments are visualized below using the columns {{viz_columns[0]}} and {{viz_columns[1]}}.
   </p>
@@ -40,29 +39,29 @@
   <div id="cluster_plot_loading_error_single" class="alert alert-warning alert-dismissible fade show" role="alert" style="display: none;">
     <button type="button" class="close" aria-label="Close"
             onclick="$('#cluster_plot_loading_error').hide(); $('#cluster_plot_loading').show();
-            $('#cluster_plot_img_single').attr('src', $('#cluster_plot_img_single').attr('src'))">
+                $('#task_plot_img').attr('src', $('#task_plot_img').attr('src'))">
       <span class="fa fa-refresh" aria-hidden="true"></span>
     </button>
     <strong>Error</strong> loading Cluster Plots.
   </div>
-  <img id="cluster_plot_img_single" src="{{url_for('visualize_cluster', job_id=job_id, task_id=task_id, x_axis=viz_columns[0], y_axis=viz_columns[1],
-  min_members=min_members, plot_best='True')}}" class="img-fluid"
-       onload="$('#cluster_plot_loading_single').hide();$('#cluster_plot_loading_error_single').hide();$('#cluster_plot_img_single').show();"
-  onerror="$('#cluster_plot_img_single').hide();$('#cluster_plot_loading_single').hide();$('#cluster_plot_loading_error_single').show();"/>
+  <img id="task_plot_img" src="{{url_for('plot_task', job_id=job_id, task_id=task_id, x_axis=viz_columns[0], y_axis=viz_columns[1],
+  min_members=min_members, plot_best=plot_best)}}" class="img-fluid"
+       onload="$('#cluster_plot_loading_single').hide();$('#cluster_plot_loading_error_single').hide();$('#task_plot_img').show();"
+  onerror="$('#task_plot_img').hide();$('#cluster_plot_loading_single').hide();$('#cluster_plot_loading_error_single').show();"/>
   <br><br>
 
 {% endblock %}
 {% block scripts %}
 <script>
   function reload_cluster_plot(){
-      $('#cluster_plot_img_single').hide();
-      $('#cluster_plot_loading_single').show();
-      var url = "/viz/cluster/?job_id={{job_id|safe}}&task_id={{task_id}}&x_axis=<x_axis>&y_axis=<y_axis>"
+      $('#task_plot_img').hide();
+      $('#task_plot_img').show();
+      var url = "/plot/task/?job_id={{job_id|safe}}&task_id={{task_id}}&x_axis=<x_axis>&y_axis=<y_axis>&plot_best={{plot_best}}"
       var x_axis = $('#cluster_plot_reload_form option:selected').eq(0).text()
       var y_axis = $('#cluster_plot_reload_form option:selected').eq(1).text()
       url = url.replace("<x_axis>", x_axis)
       url = url.replace("<y_axis>", y_axis)
-      $('#cluster_plot_img_single').attr("src", url);
+      $('#task_plot_img').attr("src", url);
   }
 </script>
 {% endblock%}
