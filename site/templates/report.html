@@ -120,7 +120,7 @@
     <strong>Error</strong> loading Cluster Plots.
   </div>
   <img id="cluster_plot_img" src="{{url_for('plot_cluster', job_id=job_id, x_axis=viz_columns[0], y_axis=viz_columns[1],
-  min_members=min_members, plot_best='False')}}" class="img-fluid"
+  show_ticks=False, min_members=min_members, plot_best='False')}}" class="img-fluid"
        onload="$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').hide();$('#cluster_plot_img').show();"
   onerror="$('#cluster_plot_img').hide();$('#cluster_plot_loading').hide();$('#cluster_plot_loading_error').show();"/>
   <br><br>

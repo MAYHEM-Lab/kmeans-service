@@ -247,7 +247,7 @@ def plot_aic_bic_fig(tasks):
 
 
 def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics,
-                     show_ticks=False):
+                     show_ticks=True):
     """
     Creates cluster plot for the user data using label assignment provided, as a 2-row x 3-col scatter plot.
 
@@ -303,7 +303,7 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics,
     return fig
 
 
-def plot_single_cluster_fig(data, columns, labels, bic, k, show_ticks=False):
+def plot_single_cluster_fig(data, columns, labels, bic, k, show_ticks=True):
     """
     Creates cluster plot for the best label assignment based on BIC score.
 
