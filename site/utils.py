@@ -89,8 +89,10 @@ def filter_dict_list_by_keys(dict_list, keys):
 
 def tasks_to_best_results(tasks):
     """
-    Finds the best values for k, labels, and BIC for all covar_type and covar_tied. 'Best' corresponds to highest BIC
-    value.
+    Finds the best clustering among tasks for each covar_type-covar_tied pair.
+
+    Method returns the best values for k, labels, and BIC for all covar_type
+    and covar_tied. 'Best' corresponds to highest BIC value.
 
     Parameters
     ----------
@@ -113,21 +115,15 @@ def tasks_to_best_results(tasks):
     df['bic'] = df['bic'].astype('float')
     df['k'] = df['k'].astype('int')
 
-    # For each covar_type and covar_tied, find k that has the best (max.) mean bic
-    df_best_mean_bic = df.groupby(['covar_type', 'covar_tied', 'k'], as_index=False).mean()
-    df_best_mean_bic = df_best_mean_bic.sort_values('bic', ascending=False)
-    df_best_mean_bic = df_best_mean_bic.groupby(['covar_type', 'covar_tied'], as_index=False).first()
+    # For each covar_type and covar_tied, find k that has maximum bic score
+    df = df.loc[df.groupby(['covar_type', 'covar_tied', 'k'])['bic'].idxmax()]
+    df = df.loc[df.groupby(['covar_type', 'covar_tied'])['bic'].idxmax()]
 
-    # Get labels from df that correspond to a bic closest to the best mean bic
-    df = pd.merge(df, df_best_mean_bic, how='inner', on=['covar_type', 'covar_tied', 'k'], suffixes=('_x', '_y'))
-    df = df.sort_values('bic_x', ascending=False)
-    df = df.groupby(['covar_type', 'covar_tied', 'k'], as_index=False).first()
     labels = []
     for row in df['_id']:
         labels += [t['labels'] for t in tasks if t['_id'] == row]
-
-    return df['covar_type'].tolist(), df['covar_tied'].tolist(), df['k'].tolist(), labels, df['bic_x'], \
-           df['task_id_x'].tolist()
+    df.reset_index(drop=True, inplace=True)
+    return df['covar_type'].tolist(), df['covar_tied'].tolist(),df['k'].tolist(), labels, df['bic'], df['task_id'].tolist()
 
 
 def tasks_to_best_task(tasks):
