@@ -482,7 +482,9 @@ def submit():
             os.remove(filepath)
 
             # Create all tasks asynchronously
-            create_tasks.delay(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_key, scale)
+            create_tasks.apply_async((job_id, n_init, n_experiments, max_k,
+                                      covars, columns, s3_file_key, scale),
+                                      queue='high')
             print('creating all tasks asynchronously')
             flash('Your request with job ID "{}" and {} tasks are being submitted. Refresh this page for updates.'.format(
                 job_id, n_tasks), category='success')
