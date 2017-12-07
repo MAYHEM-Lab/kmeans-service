@@ -209,7 +209,7 @@ pip install -r requirements.txt
 ```bash
 sudo /etc/init.d/nginx start
 sudo rm /etc/nginx/sites-enabled/default
-sudo cp nginx.conf /etc/nginx/sites-available/kmeans_frontend
+sudo cp /conf/nginx.conf /etc/nginx/sites-available/kmeans_frontend
 sudo ln -s /etc/nginx/sites-available/kmeans_frontend /etc/nginx/sites-enabled/kmeans_frontend
 sudo /etc/init.d/nginx restart
 ```
@@ -222,7 +222,7 @@ touch /home/ubuntu/logs/gunicorn/error.log
 10. Configure frontend service:
 ```bash
 #if using upstart
-sudo cp /home/ubuntu/kmeans-service/site/frontend.conf /etc/init/frontend.conf
+sudo cp /home/ubuntu/kmeans-service/site/conf/frontend.conf /etc/init/frontend.conf
 #if using systemd
 sudo cp /home/ubuntu/kmeans-service/site/util/frontend.service /etc/systemd/system/
 ```
@@ -287,7 +287,7 @@ Launch Configuration".
 4. Under "User data", select "Enter Text" and paste the following into the text box under it:
 ```bash
 #!/bin/bash
-sudo cp /home/ubuntu/kmeans-service/site/worker.conf /etc/init/worker.conf
+sudo cp /home/ubuntu/kmeans-service/site/conf/worker.conf /etc/init/worker.conf
 sudo service worker start
 ```
 5. Click "Next"
