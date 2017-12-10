@@ -6,7 +6,7 @@ All function used withing Flask must use the context object. Outside of Flask, t
 Author: Angad Gill
 """
 import time
-from flask_app import mongo
+#from flask_app import mongo
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 

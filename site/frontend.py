@@ -24,6 +24,7 @@ import numpy as np
 matplotlib.use('Agg')  # ensure that plotting works on a server with no display
 
 import os
+from pprint import pprint
 
 from flask import request, render_template, redirect, url_for, flash, make_response
 from flask_app import app
@@ -32,10 +33,12 @@ from werkzeug.utils import secure_filename
 from utils import format_date_time, tasks_to_best_results, task_stats, filter_by_min_members, tasks_to_best_task
 from utils import plot_cluster_fig, plot_single_cluster_fig, plot_aic_bic_fig, plot_count_fig, plot_correlation_fig, fig_to_png
 from utils import allowed_file, upload_to_s3, s3_to_df, job_to_data, get_viz_columns
-from database import mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks, mongo_get_tasks_by_args
-from database import mongo_add_s3_file_key, mongo_get_task
+# from database import mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks, mongo_get_tasks_by_args
+# from database import mongo_add_s3_file_key, mongo_get_task
 from worker import create_tasks, rerun_task
 from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS, SPATIAL_COLUMNS
+#from flask_app import db
+from db import Job, Task
 
 
 @app.route('/', methods=['GET'])
@@ -48,7 +51,6 @@ def index():
     html
     """
     return render_template('index.html', exclude_columns=EXCLUDE_COLUMNS)
-
 
 @app.route('/status/', methods=['GET', 'POST'])
 @app.route('/status/<job_id>')
@@ -71,22 +73,23 @@ def status(job_id=None):
         else:
             flash("Invalid job ID!", 'danger')
             return render_template('index.html')
+
     if job_id is None:
         job_id = request.args.get('job_id', None)
     if job_id is None:
         flash('Job ID invalid!'.format(job_id), category='danger')
         return render_template('index.html')
     else:
-        if not mongo_job_id_exists(job_id):
+        job = Job.objects(job_id=job_id).first()
+        if job.count() < 1:
             flash('Job ID {} not found!'.format(job_id), category='danger')
             return render_template('index.html')
-
         # job_id is valid
-        job = mongo_get_job(job_id)
-        tasks = mongo_get_tasks(job_id)
+        #job = mongo_get_job(job_id)
+        tasks = Task.objects(job_id=job.id)
         stats = task_stats(job['n_tasks'], tasks)
         start_time_date, start_time_clock = format_date_time(job['start_time'])
-        return render_template('status.html', job_id=job_id, stats=stats,
+        return render_template('status.html', job_id=job.id, stats=stats,
                                tasks=tasks, job=job,
                                start_time_date=start_time_date,
                                start_time_clock=start_time_clock)
@@ -124,21 +127,22 @@ def report(job_id=None):
         x_axis = request.args.get('x_axis', None)
         y_axis = request.args.get('y_axis', None)
         min_members = request.args.get('min_members', None)
+
     if job_id is None:
         flash('Job ID invalid!'.format(job_id), category='danger')
         return render_template('index.html')
-    if not mongo_job_id_exists(job_id):
+
+    job = Job.objects(job_id=job_id).first()
+    if job.count() < 1:
         flash('Job ID {} not found!'.format(job_id), category='danger')
         return render_template('index.html')
 
-    # job_id is valid
-    job = mongo_get_job(job_id)
     n_tasks = job['n_tasks']
-    tasks = mongo_get_tasks(job_id)
+    tasks = Task.objects(job_id=job_id)
     n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
     if n_tasks != n_tasks_done:
         flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
-        return redirect(url_for('status', job_id=job_id))
+        return redirect(url_for('status', job_id=job.id))
 
     # all tasks are done
     if min_members is None:
@@ -201,7 +205,7 @@ def plot_aic_bic():
     min_members = int(request.args.get('min_members', None))
     if job_id is None:
         return None
-    tasks = mongo_get_tasks(job_id)
+    tasks = Task.objects(job_id=job_id)
     if min_members is not None:
         tasks = filter_by_min_members(tasks, min_members)
     fig = plot_aic_bic_fig(tasks)
@@ -231,7 +235,7 @@ def plot_count():
     min_members = int(request.args.get('min_members', None))
     if job_id is None:
         return None
-    tasks = mongo_get_tasks(job_id)
+    tasks = Task.objects(job_id=job_id)
     if min_members is not None:
         tasks = filter_by_min_members(tasks, min_members)
     fig = plot_count_fig(tasks)
@@ -268,13 +272,14 @@ def report_task():
     if job_id is None:
         return None
     if plot_best:
-        k, bic, labels, task_id = tasks_to_best_task(mongo_get_tasks(job_id))
+        k, bic, labels, task_id = tasks_to_best_task(Task.objects(job_id=job_id))
     if task_id is None:
         return None
     task_id = int(task_id)
     data = job_to_data(job_id)
     columns = list(data.columns)
-    viz_columns = get_viz_columns(mongo_get_job(job_id), x_axis, y_axis)
+    viz_columns = get_viz_columns(Job.objects(job_id=job_id).first(), x_axis,
+                                  y_axis)
     return render_template('report_task.html', job_id=job_id,
                            task_id=task_id, viz_columns=viz_columns,
                            columns=columns, plot_best=plot_best)
@@ -306,7 +311,7 @@ def plot_cluster():
     plot_best = request.args.get('plot_best', 'True') == 'True'
     if job_id is None or x_axis is None or y_axis is None:
         return None
-    tasks = mongo_get_tasks(job_id)
+    tasks = Task.objects(job_id=job_id)
     if min_members is not None:
         tasks = filter_by_min_members(tasks, min_members)
     covar_types, covar_tieds, ks, labels, bics, task_ids = tasks_to_best_results(tasks)
@@ -343,8 +348,9 @@ def plot_task():
     if job_id is None or task_id is None:
         return None
     data = job_to_data(job_id)
-    task = mongo_get_task(job_id, task_id)
-    viz_columns = get_viz_columns(mongo_get_job(job_id), x_axis, y_axis)
+    task = Task.objects(job_id=job_id, task_id=task_id).first()
+    viz_columns = get_viz_columns(Job.objects(job_id=job_id).first(), x_axis,
+                                  y_axis)
     fig = plot_single_cluster_fig(data, viz_columns, task['labels'],
                                   task['bic'], task['k'],
                                   show_ticks)
@@ -372,7 +378,7 @@ def plot_correlation():
     job_id = request.args.get('job_id')
     if job_id is None:
         return None
-    job = mongo_get_job(job_id)
+    job = Job.objects(job_id=job_id).first()
     s3_file_key = job['s3_file_key']
     data = s3_to_df(s3_file_key)
     fig = plot_correlation_fig(data)
@@ -405,7 +411,7 @@ def download_labels():
     task_id = int(request.args.get('task_id'))
     if task_id is None:
         return None
-    task = mongo_get_task(job_id, task_id)
+    task = Task.objects(job_id=job_id, task_id=task_id).first()
     if task is None:
         return None
 
@@ -414,7 +420,7 @@ def download_labels():
     k = task['k']
     export_filename = '{}_{}_{}_{}.csv'.format(job_id, covar_type, covar_tied, k)
 
-    job = mongo_get_job(job_id)
+    job = Job.objects(job_id=job_id).first()
     s3_file_key = job['s3_file_key']
     data = s3_to_df(s3_file_key)
 
@@ -475,21 +481,24 @@ def submit():
             n_tasks = n_experiments * max_k * len(covars)
 
             # Create the job synchronously
-            job_id = mongo_create_job(n_experiments, max_k, columns, filename, n_tasks, scale)
-
-            s3_file_key = upload_to_s3(filepath, filename, job_id)
-            response = mongo_add_s3_file_key(job_id, s3_file_key)
+            job = Job(n_experiments, max_k, columns, filename, n_tasks,
+                      scale).save()
+            s3_file_key = upload_to_s3(filepath, filename, job.id)
+            #response = mongo_add_s3_file_key(job_id, s3_file_key)
+            job = Job.objects(job_id=job.id).first()
+            job.s3_file_key = s3_file_key
+            job.save()
             os.remove(filepath)
 
             # Create all tasks asynchronously
-            create_tasks.apply_async((job_id, n_init, n_experiments, max_k,
+            create_tasks.apply_async((job.id, n_init, n_experiments, max_k,
                                       covars, columns, s3_file_key, scale),
                                       queue='high')
             print('creating all tasks asynchronously')
             flash('Your request with job ID "{}" and {} tasks are being submitted. Refresh this page for updates.'.format(
-                job_id, n_tasks), category='success')
+                job.id, n_tasks), category='success')
 
-            return redirect(url_for('status', job_id=job_id))
+            return redirect(url_for('status', job_id=job.id))
 
         else:
             filename = secure_filename(file.filename)

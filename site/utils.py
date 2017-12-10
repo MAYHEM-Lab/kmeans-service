@@ -22,7 +22,8 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from flask import make_response
 from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS, SPATIAL_COLUMNS, EXCLUDE_COLUMNS
 from config import S3_BUCKET, EUCA_S3_HOST, EUCA_S3_PATH, EUCA_KEY_ID, EUCA_SECRET_KEY
-from database import mongo_get_job, mongo_get_tasks
+#from database import mongo_get_job, mongo_get_tasks
+from db import Job
 
 def format_date_time(epoch_time):
     """
@@ -551,7 +552,7 @@ def s3_to_df(s3_file_key):
 
 
 def job_to_data(job_id):
-    job = mongo_get_job(job_id)
+    job = Job.objects(job_id=job_id).first()
     s3_file_key = job['s3_file_key']
     return s3_to_df(s3_file_key)
 
