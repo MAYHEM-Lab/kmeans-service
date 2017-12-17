@@ -7,7 +7,7 @@ User=ubuntu
 TimeoutStopSec=300
 ExecStartPre=/usr/bin/timedatectl
 WorkingDirectory=/home/ubuntu/kmeans-service/site
-ExecStart=/home/ubuntu/kmeans-service/site/venv/bin/celery worker -A worker
+ExecStart=/home/ubuntu/kmeans-service/site/venv/bin/celery worker -A worker -Q celery,high
 ExecStop=/usr/sbin/celery-teardown.sh
 
 [Install]

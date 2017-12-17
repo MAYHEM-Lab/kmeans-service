@@ -209,7 +209,7 @@ pip install -r requirements.txt
 ```bash
 sudo /etc/init.d/nginx start
 sudo rm /etc/nginx/sites-enabled/default
-sudo cp /conf/nginx.conf /etc/nginx/sites-available/kmeans_frontend
+sudo cp conf/nginx.conf /etc/nginx/sites-available/kmeans_frontend
 sudo ln -s /etc/nginx/sites-available/kmeans_frontend /etc/nginx/sites-enabled/kmeans_frontend
 sudo /etc/init.d/nginx restart
 ```

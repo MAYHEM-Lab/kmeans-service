@@ -22,27 +22,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from flask import make_response
 from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS, SPATIAL_COLUMNS, EXCLUDE_COLUMNS
 from config import S3_BUCKET, EUCA_S3_HOST, EUCA_S3_PATH, EUCA_KEY_ID, EUCA_SECRET_KEY
-#from database import mongo_get_job, mongo_get_tasks
 from db import Job
-
-def format_date_time(epoch_time):
-    """
-    Converts epoch time string to (Date, Time) formatted as ('04 April 2017', '11:01 AM').
-
-    Parameters
-    ----------
-    epoch_time: str
-        Epoch time converted to str.
-
-    Returns
-    -------
-    (str, str)
-        (Date, Time) formatted as ('04 April 2017', '11:01 AM')
-    """
-    start_time = time.localtime(float(epoch_time))
-    start_time_date = time.strftime("%d %B %Y", start_time)
-    start_time_clock = time.strftime("%I:%M %p", start_time)
-    return start_time_date, start_time_clock
 
 
 def float_to_str(num):
@@ -78,10 +58,11 @@ def filter_dict_list_by_keys(dict_list, keys):
     list(dict)
 
     """
+    # TODO ? why are we doing this?
     new_dict_list = []
     for d in dict_list:
         new_d = {}
-        for k, v in d.items():
+        for k, v in d.values():
             if k in keys:
                 new_d[k] = v
         new_dict_list += [new_d]

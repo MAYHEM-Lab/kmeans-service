@@ -17,27 +17,23 @@ Eucalyptus S3  MongoDB  <-------+   |
     |                           |   |
     +---------------------------+---+
 
-Author: Angad Gill
+Author: Angad Gill, Nevena Golubovic
 """
+from datetime import datetime
 import matplotlib
 import numpy as np
-matplotlib.use('Agg')  # ensure that plotting works on a server with no display
-
 import os
+matplotlib.use('Agg')  # ensure that plotting works on a server with no display
 from pprint import pprint
-
 from flask import request, render_template, redirect, url_for, flash, make_response
 from flask_app import app
 from werkzeug.utils import secure_filename
 
-from utils import format_date_time, tasks_to_best_results, task_stats, filter_by_min_members, tasks_to_best_task
+from utils import tasks_to_best_results, task_stats, filter_by_min_members, tasks_to_best_task
 from utils import plot_cluster_fig, plot_single_cluster_fig, plot_aic_bic_fig, plot_count_fig, plot_correlation_fig, fig_to_png
 from utils import allowed_file, upload_to_s3, s3_to_df, job_to_data, get_viz_columns
-# from database import mongo_job_id_exists, mongo_get_job, mongo_create_job, mongo_get_tasks, mongo_get_tasks_by_args
-# from database import mongo_add_s3_file_key, mongo_get_task
 from worker import create_tasks, rerun_task
 from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS, SPATIAL_COLUMNS
-#from flask_app import db
 from db import Job, Task
 
 
@@ -80,19 +76,19 @@ def status(job_id=None):
         flash('Job ID invalid!'.format(job_id), category='danger')
         return render_template('index.html')
     else:
-        job = Job.objects(job_id=job_id).first()
-        if job.count() < 1:
-            flash('Job ID {} not found!'.format(job_id), category='danger')
-            return render_template('index.html')
+        job = Job.objects(id=job_id).first()
+        # TODO add check below
+        # if job.count() < 1:
+        #     flash('Job ID {} not found!'.format(job_id), category='danger')
+        #     return render_template('index.html')
         # job_id is valid
         #job = mongo_get_job(job_id)
         tasks = Task.objects(job_id=job.id)
         stats = task_stats(job['n_tasks'], tasks)
-        start_time_date, start_time_clock = format_date_time(job['start_time'])
+        start_time = job.start_time.strftime("%Y-%m-%d %H:%M")
         return render_template('status.html', job_id=job.id, stats=stats,
                                tasks=tasks, job=job,
-                               start_time_date=start_time_date,
-                               start_time_clock=start_time_clock)
+                               start_time=start_time)
 
 
 @app.route('/report/', methods=['GET', 'POST'])
@@ -132,8 +128,8 @@ def report(job_id=None):
         flash('Job ID invalid!'.format(job_id), category='danger')
         return render_template('index.html')
 
-    job = Job.objects(job_id=job_id).first()
-    if job.count() < 1:
+    job = Job.objects(id=job_id).first()
+    if job is None:
         flash('Job ID {} not found!'.format(job_id), category='danger')
         return render_template('index.html')
 
@@ -150,7 +146,7 @@ def report(job_id=None):
     else:
         min_members = int(min_members)
     tasks = filter_by_min_members(tasks, min_members=min_members)
-    start_time_date, start_time_clock = format_date_time(job['start_time'])
+    start_time = job.start_time.strftime("%Y-%m-%d %H:%M")
 
     covar_types, covar_tieds, ks, labels, bics, task_ids = tasks_to_best_results(tasks)
     viz_columns = get_viz_columns(job, x_axis, y_axis)
@@ -181,7 +177,7 @@ def report(job_id=None):
     return render_template('report.html', job_id=job_id, job=job, min_members=min_members,
                            covar_type_tied_k=covar_type_tied_k, covar_type_tied_task_id=covar_type_tied_task_id,
                            columns=columns, viz_columns=viz_columns, spatial_columns=spatial_columns,
-                           start_time_date=start_time_date, start_time_clock=start_time_clock, best_bic_k=best_bic_k,
+                           start_time=start_time, best_bic_k=best_bic_k,
                            best_bic_task_id=best_bic_task_id)
 
 
@@ -378,7 +374,7 @@ def plot_correlation():
     job_id = request.args.get('job_id')
     if job_id is None:
         return None
-    job = Job.objects(job_id=job_id).first()
+    job = Job.objects(id=job_id).first()
     s3_file_key = job['s3_file_key']
     data = s3_to_df(s3_file_key)
     fig = plot_correlation_fig(data)
@@ -420,7 +416,7 @@ def download_labels():
     k = task['k']
     export_filename = '{}_{}_{}_{}.csv'.format(job_id, covar_type, covar_tied, k)
 
-    job = Job.objects(job_id=job_id).first()
+    job = Job.objects(id=job_id).first()
     s3_file_key = job['s3_file_key']
     data = s3_to_df(s3_file_key)
 
@@ -479,26 +475,32 @@ def submit():
             columns = request.form.getlist('columns')
             scale = 'scale' in request.form
             n_tasks = n_experiments * max_k * len(covars)
+            pr = [n_experiments, max_k, columns, filename, n_tasks,
+                      scale]
 
             # Create the job synchronously
-            job = Job(n_experiments, max_k, columns, filename, n_tasks,
-                      scale).save()
+            job = Job(n_experiments=n_experiments, max_k=max_k, scale=scale,
+                      columns=columns, filename=filename, n_tasks=n_tasks,
+                      start_time=datetime.utcnow()).save()
+            pprint(job.id)
             s3_file_key = upload_to_s3(filepath, filename, job.id)
             #response = mongo_add_s3_file_key(job_id, s3_file_key)
-            job = Job.objects(job_id=job.id).first()
+            #job = Job.objects(id=job.id).first()
             job.s3_file_key = s3_file_key
             job.save()
             os.remove(filepath)
 
             # Create all tasks asynchronously
-            create_tasks.apply_async((job.id, n_init, n_experiments, max_k,
-                                      covars, columns, s3_file_key, scale),
+            create_tasks.apply_async((str(job.id), n_init, n_experiments,
+                                      max_k,
+                                      covars, columns, s3_file_key,
+                                      scale),
                                       queue='high')
             print('creating all tasks asynchronously')
             flash('Your request with job ID "{}" and {} tasks are being submitted. Refresh this page for updates.'.format(
-                job.id, n_tasks), category='success')
+                str(job.id), n_tasks), category='success')
 
-            return redirect(url_for('status', job_id=job.id))
+            return redirect(url_for('status', job_id=str(job.id)))
 
         else:
             filename = secure_filename(file.filename)
@@ -532,6 +534,19 @@ def rerun():
     flash('Rerunning {} tasks for job ID "{}"'.format(n, job_id), category='info')
     return redirect(url_for('status', job_id=job_id))
 
+
+@app.route('/testdb', methods=['GET', 'POST'])
+def testdb():
+    job = Job(columns=['Col123', 'Col2'], filename="test.txt").save()
+    pprint(job.id)
+    jid = job.id
+    print(str(job.id))
+    job.save()
+    j = Job.objects(id=jid).first()
+    print("j")
+    pprint(j.filename)
+
+    return render_template('index.html')
 
 if __name__ == "__main__":
     app.run(debug=True)

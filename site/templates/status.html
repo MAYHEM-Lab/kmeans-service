@@ -18,7 +18,7 @@
 {% block body %}
   <h3>Status for Job ID: {{job_id}}</h3>
   <p class="text-muted">
-    Submitted at {{start_time_clock}} on {{start_time_date}} (UTC)
+    Submitted at {{start_time}} (UTC)
     <br> File: "{{job.filename}}". Columns used: [{{job.columns|join(', ')}}].
     <br>n_exp: {{job.n_experiments}}. max_k: {{job.max_k}}. n_tasks: {{job.n_tasks}}. scale: {{job.scale}}.
   </p>
