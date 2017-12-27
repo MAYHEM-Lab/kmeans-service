@@ -1,7 +1,7 @@
 """
 Misc. utility functions for formatting, data wrangling, and plotting.
 
-Author: Angad Gill
+Author: Angad Gill, Nevena Golubovic
 """
 import io
 import os
@@ -13,6 +13,7 @@ import urllib.parse
 import boto
 import boto3
 
+from math import floor
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -22,7 +23,10 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from flask import make_response
 from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS, SPATIAL_COLUMNS, EXCLUDE_COLUMNS
 from config import S3_BUCKET, EUCA_S3_HOST, EUCA_S3_PATH, EUCA_KEY_ID, EUCA_SECRET_KEY
-from db import Job
+from models import Job, Task
+from flask_app import db
+from sqlalchemy import func
+from sqlalchemy.orm import load_only
 
 
 def float_to_str(num):
@@ -44,71 +48,28 @@ def float_to_str(num):
 """ Data wrangling functions """
 
 
-def filter_dict_list_by_keys(dict_list, keys):
-    """
-    Keep only keys specified in the function parameter `keys`. Does not modify dicts in `dict_list`.
-
-    Parameters
-    ----------
-    dict_list: list(dict)
-    keys: list(str)
-
-    Returns
-    -------
-    list(dict)
-
-    """
-    # TODO ? why are we doing this?
-    new_dict_list = []
-    for d in dict_list:
-        new_d = {}
-        for k, v in d.values():
-            if k in keys:
-                new_d[k] = v
-        new_dict_list += [new_d]
-    return new_dict_list
-
-
-def tasks_to_best_results(tasks):
+# TODO add filter_by min_members
+def tasks_to_best_results(job_id, min_members=0):
     """
     Finds the best clustering among tasks for each covar_type-covar_tied pair.
-
-    Method returns the best values for k, labels, and BIC for all covar_type
-    and covar_tied. 'Best' corresponds to highest BIC value.
-
-    Parameters
-    ----------
-    tasks: list(dict)
-
-    Returns
-    -------
-    list(str), list(bool), list(int), list(list(int)), list(float)
-        list of covar_type strings
-        list of covar_tied bools
-        list of k values
-        list of labels
-        list of BIC values
-        list of task_id
     """
-    # Filter list of dicts to reduce the size of Pandas DataFrame
-    df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['task_id', 'k', 'covar_type', 'covar_tied', 'bic', '_id']))
+    results = []
+    best_records = db.session.query(func.max(Task.bic), Task.covar_tied,
+                            Task.covar_type).filter_by(
+        job_id=job_id).group_by(Task.covar_type, Task.covar_tied).all()
 
-    # Subset df to needed columns and fix types
-    df['bic'] = df['bic'].astype('float')
-    df['k'] = df['k'].astype('int')
-
-    # For each covar_type and covar_tied, find k that has maximum bic score
-    df = df.loc[df.groupby(['covar_type', 'covar_tied', 'k'])['bic'].idxmax()]
-    df = df.loc[df.groupby(['covar_type', 'covar_tied'])['bic'].idxmax()]
-
-    labels = []
-    for row in df['_id']:
-        labels += [t['labels'] for t in tasks if t['_id'] == row]
-    df.reset_index(drop=True, inplace=True)
-    return df['covar_type'].tolist(), df['covar_tied'].tolist(),df['k'].tolist(), labels, df['bic'], df['task_id'].tolist()
+    for bic, tied, type in best_records:
+        result = db.session.query(Task).filter(Task.job_id == job_id,
+                                          #  use >= to avoid rounding error.
+                                          Task.bic >= floor(bic),
+                                          Task.covar_tied == bool(tied),
+                                          Task.covar_type == type).first()
+        results += [result]
+    return results
 
 
-def tasks_to_best_task(tasks):
+# TODO update doc
+def tasks_to_best_task(job_id):
     """
     Finds the single best cluster assignment corresponding to the highest BIC.
 
@@ -123,11 +84,13 @@ def tasks_to_best_task(tasks):
     task_id: int - task_id of the best task
     """
     # Filter list of dicts to reduce the size of Pandas DataFrame
-    _, _, ks, labels, bics, task_ids = tasks_to_best_results(tasks)
+    tasks = tasks_to_best_results(job_id)
+    bics = [task.bic for task in tasks]
     index = np.argmax(np.array(bics))
-    return ks[index], bics[index], labels[index], task_ids[index]
+    best_task = tasks[index]
+    return best_task.k, best_task.bic, best_task.labels, best_task.task_id
 
-
+# TODO this can be done with an SQL query.
 def task_stats(n_tasks, tasks):
     """
     Find statistics on tasks statuses.
@@ -159,9 +122,9 @@ def task_stats(n_tasks, tasks):
     n_tasks_done, n_tasks_pending, n_tasks_error = 0, 0, 0
 
     if n_tasks_submitted > 0:
-        n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
-        n_tasks_pending = len([x for x in tasks if x['task_status'] == 'pending'])
-        n_tasks_error = len([x for x in tasks if x['task_status'] == 'error'])
+        n_tasks_done = len([x for x in tasks if x.task_status == 'done'])
+        n_tasks_pending = len([x for x in tasks if x.task_status == 'pending'])
+        n_tasks_error = len([x for x in tasks if x.task_status == 'error'])
 
     per_done = '{:.1f}'.format(n_tasks_done / n_tasks * 100)
     per_pending = '{:.1f}'.format(n_tasks_pending / n_tasks * 100)
@@ -174,7 +137,8 @@ def task_stats(n_tasks, tasks):
                  n_tasks_submitted=n_tasks_submitted, per_submitted=per_submitted)
     return stats
 
-
+# TODO this should be computed and saved.
+# TODO compute the size of the smallest cluster.
 def filter_by_min_members(tasks, min_members=10):
     """
     Keep tasks only if they have at least `min_members` points in each cluster. Does not modify `tasks`.
@@ -192,7 +156,7 @@ def filter_by_min_members(tasks, min_members=10):
     """
     filtered_tasks = []
     for task in tasks:
-        if np.all(np.bincount(task['labels']) > min_members):
+        if np.all(np.bincount(task.labels) > min_members):
             filtered_tasks += [task]
     return filtered_tasks
 
@@ -200,7 +164,7 @@ def filter_by_min_members(tasks, min_members=10):
 """ Plotting functions  """
 
 
-def plot_aic_bic_fig(tasks):
+def plot_aic_bic_fig(job_id):
     """
     Creates AIC-BIC plot, as a 2-row x 3-col grid of point plots with 95% confidence intervals.
 
@@ -212,9 +176,14 @@ def plot_aic_bic_fig(tasks):
     -------
     Matplotlib Figure object
     """
+    tasks = db.session.query(Task).filter_by(job_id=job_id).options(load_only(
+        "k", "covar_type", "covar_tied", "bic", "aic")).all()
+    data_records = [task.__dict__ for task in tasks]
+    df = pd.DataFrame.from_records(data_records)
+
+    print(df)
+
     sns.set(context='talk', style='whitegrid')
-    # Filter list of dicts to reduce the size of Pandas DataFrame
-    df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']))
     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
     df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
     df['aic'] = df['aic'].astype('float')
@@ -228,22 +197,18 @@ def plot_aic_bic_fig(tasks):
     return f.fig
 
 
-def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics,
+def plot_cluster_fig(data, columns, best_tasks,
                      show_ticks=True):
     """
-    Creates cluster plot for the user data using label assignment provided, as a 2-row x 3-col scatter plot.
+    Creates cluster 2-row x 3-col scatter plot using provided label assignment.
 
     Parameters
     ----------
-    data: Pandas DataFrame
-        User data file as a Pandas DataFrame
-    columns: list(str)
-        Column numbers from `data` to use as the x and y axes for the plot. Only the first two elements of the list
-        are used.
-    covar_type_tied_labels_k_bics: list((str, bool, list(int), int, float))
-        [(covar_type, covar_tied, labels, k, bic), ... ]
-    show_ticks: bool
-        Show or hide tick marks on x and y axes.
+    data: Pandas DataFrame - User data file as a Pandas DataFrame
+    columns: list(str) - Column numbers from `data` to use as the x and y axes
+    for the plot. Only the first two elements of the list are used.
+    best_tasks: list(Task) - Tasks with the best BIC scores
+    show_ticks: bool - Show or hide tick marks on x and y axes.
 
     Returns
     -------
@@ -254,21 +219,21 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics,
     columns = columns[:2]
 
     fig = plt.figure()
-    placement = {'full': {True: 1, False: 4}, 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
+    placement = {'full': {True: 1, False: 4},
+                 'diag': {True: 2, False: 5}, 'spher': {True: 3, False: 6}}
 
     lim_left = data[columns[0]].min()
     lim_right = data[columns[0]].max()
     lim_bottom = data[columns[1]].min()
     lim_top = data[columns[1]].max()
 
-    covar_type_tied_labels_k_bics = list(covar_type_tied_labels_k_bics)
-
-    bics = [x[4] for x in covar_type_tied_labels_k_bics]
+    bics = [task.bic for task in best_tasks]
     max_bic = max(bics)
 
-    for covar_type, covar_tied, labels, k, bic in covar_type_tied_labels_k_bics:
-        plt.subplot(2, 3, placement[covar_type][covar_tied])
-        plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow, s=10)
+    for task in best_tasks:
+        plt.subplot(2, 3, placement[task.covar_type][task.covar_tied])
+        plt.scatter(data[columns[0]], data[columns[1]], c=task.labels,
+                    cmap=plt.cm.rainbow, s=10)
         plt.xlabel(columns[0])
         plt.ylabel(columns[1])
         plt.xlim(left=lim_left, right=lim_right)
@@ -276,8 +241,10 @@ def plot_cluster_fig(data, columns, covar_type_tied_labels_k_bics,
         if show_ticks is False:
             plt.xticks([])
             plt.yticks([])
-        title = '{}-{}, K={}\nBIC: {:,.1f}'.format(covar_type.capitalize(), ['Untied', 'Tied'][covar_tied], k, bic)
-        if bic == max_bic:
+        title = '{}-{}, K={}\nBIC: {:,.1f}'.format(
+            task.covar_type.capitalize(), ['Untied', 'Tied'][task.covar_tied],
+            task.k, task.bic)
+        if task.bic == max_bic:
             plt.title(title, fontweight='bold')
         else:
             plt.title(title)
@@ -311,7 +278,8 @@ def plot_single_cluster_fig(data, columns, labels, bic, k, show_ticks=True):
     lim_bottom = data[columns[1]].min()
     lim_top = data[columns[1]].max()
 
-    plt.scatter(data[columns[0]], data[columns[1]], c=labels, cmap=plt.cm.rainbow, s=10)
+    plt.scatter(data[columns[0]], data[columns[1]],
+                c=labels, cmap=plt.cm.rainbow, s=10)
     plt.xlabel(columns[0])
     plt.ylabel(columns[1])
     plt.xlim(left=lim_left, right=lim_right)
@@ -323,6 +291,7 @@ def plot_single_cluster_fig(data, columns, labels, bic, k, show_ticks=True):
     plt.title(title)
     plt.tight_layout()
     return fig
+
 
 def plot_correlation_fig(data):
     """
@@ -344,7 +313,7 @@ def plot_correlation_fig(data):
     return fig
 
 
-def plot_count_fig(tasks):
+def plot_count_fig(job_id):
     """
     Create count plot, as a 2-row x 3-col bar plot of data points for each k in each covar.
 
@@ -356,9 +325,12 @@ def plot_count_fig(tasks):
     -------
     Matplotlib Figure object.
     """
+    tasks = db.session.query(Task).filter_by(job_id=job_id).options(load_only(
+        "k", "covar_type", "covar_tied", "bic", "aic")).all()
+    data_records = [task.__dict__ for task in tasks]
+    df = pd.DataFrame.from_records(data_records)
+
     sns.set(context='talk', style='whitegrid')
-    df = pd.DataFrame(filter_dict_list_by_keys(tasks, ['k', 'covar_type', 'covar_tied']))
-    df = df.loc[:, ['k', 'covar_type', 'covar_tied', 'bic', 'aic']]
     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
     df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
     f = sns.factorplot(x='k', kind='count', col='covar_type', row='covar_tied', data=df,
@@ -533,8 +505,8 @@ def s3_to_df(s3_file_key):
 
 
 def job_to_data(job_id):
-    job = Job.objects(job_id=job_id).first()
-    s3_file_key = job['s3_file_key']
+    job = db.session.query(Job).filter_by(job_id=job_id).first()
+    s3_file_key = job.s3_file_key
     return s3_to_df(s3_file_key)
 
 
@@ -543,7 +515,7 @@ def get_viz_columns(job, x_axis, y_axis):
     if x_axis is not None and y_axis is not None:
         return [x_axis, y_axis]
     # Return the first two clustering columns
-    job_columns = job['columns']
+    job_columns = job.columns
     preferred_columns = [c for c in job_columns if c.lower().strip() not
                          in EXCLUDE_COLUMNS][:2]
     if len(preferred_columns) == 2:
@@ -551,7 +523,7 @@ def get_viz_columns(job, x_axis, y_axis):
     if len(job_columns) >= 2:
         return job_columns[:2]
     # Return the first two data columns
-    data = job_to_data(job['_id'])
+    data = job_to_data(job.job_id)
     all_columns = data.columns
     preferred_columns = [c for c in all_columns if c.lower().strip() not
                          in EXCLUDE_COLUMNS][:2]

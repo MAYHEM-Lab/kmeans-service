@@ -17,13 +17,13 @@ Amazon S3      MongoDB  <-------+   |
 Author: Angad Gill, Nevena Golubovic
 """
 from datetime import datetime
-from time import time
 from sf_kmeans import sf_kmeans
-from utils import s3_to_df, float_to_str
+from utils import s3_to_df
 from celery import Celery
 from config import CELERY_BROKER
 from sklearn import preprocessing
-from db import Job, Task
+from models import Job, Task
+from flask_app import db
 
 app = Celery('jobs', broker=CELERY_BROKER)
 
@@ -61,15 +61,16 @@ def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_
             for covar in covars:
                 covar_type, covar_tied = covar.lower().split('-')
                 covar_tied = covar_tied == 'tied'
-                task = Task(task_id=task_id, covar_type=covar_type,
-                         covar_tied=covar_tied, k=k, n_init=n_init,
-                            job_id=job_id,
+                task = Task(task_id=task_id, job_id=job_id, covar_type=covar_type,
+                            covar_tied=covar_tied,
+                            n_experiments=n_experiments, k=k, n_init=n_init,
+                            s3_file_key=s3_file_key,
                             columns=columns, task_status=task_status)
                 tasks += [task]
                 task_id += 1
 
-    response = Task.objects.insert(tasks)
-    print(response)
+    response = db.session.add_all(tasks)
+    db.session.commit()
 
     # Start workers
     task_id = 0
@@ -82,6 +83,8 @@ def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_
                                 n_init, s3_file_key, columns, scale)
                 task_id += 1
 
+
+# TODO pass the task id instead of all the params. do this everywhere.
 @app.task
 def rerun_task(job_id, task_id):
     """
@@ -98,16 +101,17 @@ def rerun_task(job_id, task_id):
     -------
     None
     """
-    job = mongo_no_context_get_job(job_id)
-    task = mongo_no_context_get_task(job_id, task_id)
-    k = task['k']
-    covar_type = task['covar_type']
-    covar_tied = task['covar_tied']
-    n_init = task['n_init']
-    s3_file_key = job['s3_file_key']
-    columns = job['columns']
-    scale = job.get('scale', False)
-    response = mongo_no_context_update_task_status(job_id, task_id, 'pending')
+    job = db.session.query(Job).filter_by(job_id=job_id).first()
+    task = db.session.query(Task).filter_by(job_id=job_id, task_id=task_id).first()
+    k = task.k
+    covar_type = task.covar_type
+    covar_tied = task.covar_tied
+    n_init = task.n_init
+    s3_file_key = job.s3_file_key
+    columns = job.columns
+    scale = job.scale
+    task.task_status = 'pending'
+    db.session.commit()
     work_task.delay(job_id, task_id, k, covar_type, covar_tied, n_init,
                     s3_file_key, columns, scale)
 
@@ -181,15 +185,15 @@ def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, c
         elapsed_time = (datetime.utcnow() - start_time).total_seconds()
         elapsed_processing_time = elapsed_processing_time
 
-
-
-        response = Task.objects(job_id=job_id, task_id=task_id).update_one(
-            task_status='done', aic=aic, bic=bic, labels=labels,
-            elapsed_time=elapsed_time, elapsed_read_time=elapsed_read_time,
-            elapsed_processing_time=elapsed_processing_time)
-        print(response)
+        db.session.query(Task).filter_by(job_id=job_id, task_id=task_id).update(
+            dict(
+                task_status='done', aic=aic, bic=bic, labels=labels,
+                elapsed_time=elapsed_time, elapsed_read_time=elapsed_read_time,
+                elapsed_processing_time=elapsed_processing_time))
+        db.session.commit()
     except Exception as e:
-        response = Task.objects(job_id=job_id, task_id=task_id).update_one(
+        db.session.query(Task).filter_by(job_id=job_id,
+                                     task_id=task_id).update_one(
             task_status='error')
         raise e
     return 'Done'

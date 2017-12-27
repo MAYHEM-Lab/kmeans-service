@@ -24,17 +24,21 @@ import matplotlib
 import numpy as np
 import os
 matplotlib.use('Agg')  # ensure that plotting works on a server with no display
-from pprint import pprint
 from flask import request, render_template, redirect, url_for, flash, make_response
 from flask_app import app
 from werkzeug.utils import secure_filename
 
-from utils import tasks_to_best_results, task_stats, filter_by_min_members, tasks_to_best_task
-from utils import plot_cluster_fig, plot_single_cluster_fig, plot_aic_bic_fig, plot_count_fig, plot_correlation_fig, fig_to_png
-from utils import allowed_file, upload_to_s3, s3_to_df, job_to_data, get_viz_columns
+from utils import tasks_to_best_results, task_stats, tasks_to_best_task
+from utils import plot_cluster_fig, plot_single_cluster_fig, plot_aic_bic_fig
+from utils import plot_count_fig, plot_correlation_fig, get_viz_columns
+from utils import allowed_file, upload_to_s3, s3_to_df, job_to_data, fig_to_png
 from worker import create_tasks, rerun_task
 from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS, SPATIAL_COLUMNS
-from db import Job, Task
+from models import Job, Task
+from flask_app import db
+
+COVAR_TYPES = ['full', 'diag', 'spher']
+COVAR_TIDES = ['Untied', 'Tied']
 
 
 @app.route('/', methods=['GET'])
@@ -76,17 +80,15 @@ def status(job_id=None):
         flash('Job ID invalid!'.format(job_id), category='danger')
         return render_template('index.html')
     else:
-        job = Job.objects(id=job_id).first()
-        # TODO add check below
-        # if job.count() < 1:
-        #     flash('Job ID {} not found!'.format(job_id), category='danger')
-        #     return render_template('index.html')
-        # job_id is valid
-        #job = mongo_get_job(job_id)
-        tasks = Task.objects(job_id=job.id)
-        stats = task_stats(job['n_tasks'], tasks)
+        job = db.session.query(Job).filter_by(job_id=job_id).first()
+        if job is None:
+            flash('Job ID {} not found!'.format(job_id), category='danger')
+            return render_template('index.html')
+        # TODO don't load everything, load labels only per request.
+        tasks = db.session.query(Task).filter_by(job_id=job_id).all()
+        stats = task_stats(job.n_tasks, tasks)
         start_time = job.start_time.strftime("%Y-%m-%d %H:%M")
-        return render_template('status.html', job_id=job.id, stats=stats,
+        return render_template('status.html', job_id=job.job_id, stats=stats,
                                tasks=tasks, job=job,
                                start_time=start_time)
 
@@ -128,57 +130,53 @@ def report(job_id=None):
         flash('Job ID invalid!'.format(job_id), category='danger')
         return render_template('index.html')
 
-    job = Job.objects(id=job_id).first()
+    job = db.session.query(Job).filter_by(job_id=job_id).first()
     if job is None:
         flash('Job ID {} not found!'.format(job_id), category='danger')
         return render_template('index.html')
 
-    n_tasks = job['n_tasks']
-    tasks = Task.objects(job_id=job_id)
-    n_tasks_done = len([x for x in tasks if x['task_status'] == 'done'])
-    if n_tasks != n_tasks_done:
-        flash('All tasks not completed yet for job ID: {}'.format(job_id), category='danger')
+    if job.n_tasks != db.session.query(Task).filter_by(job_id=job_id,
+            task_status='done').count():
+        flash('All tasks not completed yet for job ID: {}'.format(job_id),
+              category='danger')
         return redirect(url_for('status', job_id=job.id))
 
     # all tasks are done
     if min_members is None:
         min_members = 40
-    else:
-        min_members = int(min_members)
-    tasks = filter_by_min_members(tasks, min_members=min_members)
-    start_time = job.start_time.strftime("%Y-%m-%d %H:%M")
 
-    covar_types, covar_tieds, ks, labels, bics, task_ids = tasks_to_best_results(tasks)
+    start_time = job.start_time.strftime("%Y-%m-%d %H:%M")
+    best_tasks = tasks_to_best_results(job_id, min_members)
+
     viz_columns = get_viz_columns(job, x_axis, y_axis)
-    data = s3_to_df(job['s3_file_key'])
+    data = s3_to_df(job.s3_file_key)
     columns = list(data.columns)
     spatial_columns = [c for c in columns if c.lower() in SPATIAL_COLUMNS][:2]
 
     # recommendations for all covariance types
     covar_type_tied_k = {}
-    for covar_type in covar_types:
-        covar_type_tied_k[covar_type.capitalize()] = {}
-
-    for covar_type, covar_tied, k in zip(covar_types, covar_tieds, ks):
-        covar_type_tied_k[covar_type.capitalize()][['Untied', 'Tied'][covar_tied]] = k
-
-    # task_id for all recommended assignments
     covar_type_tied_task_id = {}
-    for covar_type in covar_types:
+    for covar_type in COVAR_TYPES:
+        covar_type_tied_k[covar_type.capitalize()] = {}
         covar_type_tied_task_id[covar_type.capitalize()] = {}
-
-    for covar_type, covar_tied, task_id in zip(covar_types, covar_tieds, task_ids):
-        covar_type_tied_task_id[covar_type.capitalize()][['Untied', 'Tied'][covar_tied]] = task_id
+    for task in best_tasks:
+        covar_type_tied_k[task.covar_type.capitalize()][['Untied', 'Tied'][
+            task.covar_tied]] = task.k
+        covar_type_tied_task_id[task.covar_type.capitalize()][['Untied',
+            'Tied'][task.covar_tied]] = task.task_id
 
     # record data about the best clustering
+    bics = [task.bic for task in best_tasks]
     best_bic_k = bics[np.argmax(bics)]
+    task_ids = [task.task_id for task in best_tasks]
     best_bic_task_id = task_ids[np.argmax(bics)]
 
-    return render_template('report.html', job_id=job_id, job=job, min_members=min_members,
-                           covar_type_tied_k=covar_type_tied_k, covar_type_tied_task_id=covar_type_tied_task_id,
-                           columns=columns, viz_columns=viz_columns, spatial_columns=spatial_columns,
-                           start_time=start_time, best_bic_k=best_bic_k,
-                           best_bic_task_id=best_bic_task_id)
+    return render_template('report.html', job_id=job_id, job=job,
+        min_members=min_members, covar_type_tied_k=covar_type_tied_k,
+        covar_type_tied_task_id=covar_type_tied_task_id, columns=columns,
+        viz_columns=viz_columns, spatial_columns=spatial_columns,
+        start_time=start_time, best_bic_k=best_bic_k,
+        best_bic_task_id=best_bic_task_id)
 
 
 @app.route('/plot/aic_bic/')
@@ -198,13 +196,10 @@ def plot_aic_bic():
     image/png
     """
     job_id = request.args.get('job_id', None)
-    min_members = int(request.args.get('min_members', None))
     if job_id is None:
         return None
-    tasks = Task.objects(job_id=job_id)
-    if min_members is not None:
-        tasks = filter_by_min_members(tasks, min_members)
-    fig = plot_aic_bic_fig(tasks)
+    # TODO save min members for each task in the DB
+    fig = plot_aic_bic_fig(job_id)
     aic_bic_plot = fig_to_png(fig)
     response = make_response(aic_bic_plot.getvalue())
     response.mimetype = 'image/png'
@@ -228,13 +223,10 @@ def plot_count():
     image/png
     """
     job_id = request.args.get('job_id', None)
-    min_members = int(request.args.get('min_members', None))
     if job_id is None:
         return None
-    tasks = Task.objects(job_id=job_id)
-    if min_members is not None:
-        tasks = filter_by_min_members(tasks, min_members)
-    fig = plot_count_fig(tasks)
+    # TODO Compute min_members and save in the DB as a field.
+    fig = plot_count_fig(job_id)
     count_plot = fig_to_png(fig)
     response = make_response(count_plot.getvalue())
     response.mimetype = 'image/png'
@@ -268,13 +260,13 @@ def report_task():
     if job_id is None:
         return None
     if plot_best:
-        k, bic, labels, task_id = tasks_to_best_task(Task.objects(job_id=job_id))
+        k, bic, labels, task_id = tasks_to_best_task(job_id)
     if task_id is None:
         return None
     task_id = int(task_id)
     data = job_to_data(job_id)
     columns = list(data.columns)
-    viz_columns = get_viz_columns(Job.objects(job_id=job_id).first(), x_axis,
+    viz_columns = get_viz_columns(db.session.query(Job).filter_by(job_id=job_id).first(), x_axis,
                                   y_axis)
     return render_template('report_task.html', job_id=job_id,
                            task_id=task_id, viz_columns=viz_columns,
@@ -307,13 +299,10 @@ def plot_cluster():
     plot_best = request.args.get('plot_best', 'True') == 'True'
     if job_id is None or x_axis is None or y_axis is None:
         return None
-    tasks = Task.objects(job_id=job_id)
-    if min_members is not None:
-        tasks = filter_by_min_members(tasks, min_members)
-    covar_types, covar_tieds, ks, labels, bics, task_ids = tasks_to_best_results(tasks)
+    best_tasks = tasks_to_best_results(job_id, min_members)
     viz_columns = [x_axis, y_axis]
     data = job_to_data(job_id)
-    fig = plot_cluster_fig(data, viz_columns, zip(covar_types, covar_tieds, labels, ks, bics), show_ticks)
+    fig = plot_cluster_fig(data, viz_columns, best_tasks, show_ticks)
     cluster_plot = fig_to_png(fig)
     response = make_response(cluster_plot.getvalue())
     response.mimetype = 'image/png'
@@ -344,11 +333,12 @@ def plot_task():
     if job_id is None or task_id is None:
         return None
     data = job_to_data(job_id)
-    task = Task.objects(job_id=job_id, task_id=task_id).first()
-    viz_columns = get_viz_columns(Job.objects(job_id=job_id).first(), x_axis,
-                                  y_axis)
-    fig = plot_single_cluster_fig(data, viz_columns, task['labels'],
-                                  task['bic'], task['k'],
+    task = db.session.query(Task).filter_by(job_id=job_id,
+                                            task_id=task_id).first()
+    viz_columns = get_viz_columns(db.session.query(Job).filter_by(
+        job_id=job_id).first(), x_axis, y_axis)
+    fig = plot_single_cluster_fig(data, viz_columns, task.labels,
+                                  task.bic, task.k,
                                   show_ticks)
     cluster_plot = fig_to_png(fig)
     response = make_response(cluster_plot.getvalue())
@@ -374,8 +364,8 @@ def plot_correlation():
     job_id = request.args.get('job_id')
     if job_id is None:
         return None
-    job = Job.objects(id=job_id).first()
-    s3_file_key = job['s3_file_key']
+    job = db.session.query(Job).filter_by(job_id=job_id).first()
+    s3_file_key = job.s3_file_key
     data = s3_to_df(s3_file_key)
     fig = plot_correlation_fig(data)
     correlation_plot = fig_to_png(fig)
@@ -407,7 +397,7 @@ def download_labels():
     task_id = int(request.args.get('task_id'))
     if task_id is None:
         return None
-    task = Task.objects(job_id=job_id, task_id=task_id).first()
+    task = db.session.query(Task).filter_by(job_id=job_id, task_id=task_id).all()
     if task is None:
         return None
 
@@ -416,7 +406,7 @@ def download_labels():
     k = task['k']
     export_filename = '{}_{}_{}_{}.csv'.format(job_id, covar_type, covar_tied, k)
 
-    job = Job.objects(id=job_id).first()
+    job = db.session.query(Job).filter_by(job_id=job_id).first()
     s3_file_key = job['s3_file_key']
     data = s3_to_df(s3_file_key)
 
@@ -479,28 +469,23 @@ def submit():
                       scale]
 
             # Create the job synchronously
-            job = Job(n_experiments=n_experiments, max_k=max_k, scale=scale,
-                      columns=columns, filename=filename, n_tasks=n_tasks,
-                      start_time=datetime.utcnow()).save()
-            pprint(job.id)
-            s3_file_key = upload_to_s3(filepath, filename, job.id)
-            #response = mongo_add_s3_file_key(job_id, s3_file_key)
-            #job = Job.objects(id=job.id).first()
+            job = Job(n_experiments=n_experiments, n_init=n_init, max_k=max_k,
+                      scale=scale, columns=columns, filename=filename,
+                      n_tasks=n_tasks, start_time=datetime.utcnow())
+            s3_file_key = upload_to_s3(filepath, filename, job.job_id)
             job.s3_file_key = s3_file_key
-            job.save()
+            db.session.add(job)
+            db.session.commit()
             os.remove(filepath)
 
             # Create all tasks asynchronously
-            create_tasks.apply_async((str(job.id), n_init, n_experiments,
-                                      max_k,
-                                      covars, columns, s3_file_key,
-                                      scale),
-                                      queue='high')
+            create_tasks.apply_async((job.job_id, n_init, n_experiments, max_k,
+                covars, columns, s3_file_key, scale), queue = 'high')
             print('creating all tasks asynchronously')
             flash('Your request with job ID "{}" and {} tasks are being submitted. Refresh this page for updates.'.format(
-                str(job.id), n_tasks), category='success')
+                str(job.job_id), n_tasks), category='success')
 
-            return redirect(url_for('status', job_id=str(job.id)))
+            return redirect(url_for('status', job_id=str(job.job_id)))
 
         else:
             filename = secure_filename(file.filename)
@@ -534,19 +519,6 @@ def rerun():
     flash('Rerunning {} tasks for job ID "{}"'.format(n, job_id), category='info')
     return redirect(url_for('status', job_id=job_id))
 
-
-@app.route('/testdb', methods=['GET', 'POST'])
-def testdb():
-    job = Job(columns=['Col123', 'Col2'], filename="test.txt").save()
-    pprint(job.id)
-    jid = job.id
-    print(str(job.id))
-    job.save()
-    j = Job.objects(id=jid).first()
-    print("j")
-    pprint(j.filename)
-
-    return render_template('index.html')
 
 if __name__ == "__main__":
     app.run(debug=True)
