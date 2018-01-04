@@ -1,6 +1,6 @@
 # Centaurus: K-Means as a Service
 This is a repository for a scalable web service that analyzes data to determine the best number of clusters for it, 
-using K-Means algorithm with Mahalanois distance and Bayesian Information Criterion.
+using K-Means algorithm with Mahalanobis distance and Bayesian Information Criterion.
 
 Author: Angad Gill
 
