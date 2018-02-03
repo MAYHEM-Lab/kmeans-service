@@ -39,6 +39,8 @@ class Task(db.Model):
     aic = db.Column(db.Float)
     bic = db.Column(db.Float)
     labels = db.Column(db.ARRAY(db.Integer))
+    cluster_counts = db.Column(db.ARRAY(db.Integer))
+    cluster_count_minimum = db.Column(db.Integer)
     elapsed_time = db.Column(db.Integer)
     elapsed_read_time = db.Column(db.Integer)
     elapsed_processing_time = db.Column(db.Integer)

@@ -24,6 +24,7 @@ from config import CELERY_BROKER
 from sklearn import preprocessing
 from models import Job, Task
 from flask_app import db
+import numpy as np
 
 app = Celery('jobs', broker=CELERY_BROKER)
 
@@ -184,16 +185,21 @@ def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, c
                                    start_processing_time).total_seconds()
         elapsed_time = (datetime.utcnow() - start_time).total_seconds()
         elapsed_processing_time = elapsed_processing_time
+        cluster_counts = (np.sort(np.bincount(labels))[::-1]).tolist()
+        cluster_count_minimum = int(np.min(cluster_counts))
+        print(type(cluster_counts))
 
         db.session.query(Task).filter_by(job_id=job_id, task_id=task_id).update(
             dict(
                 task_status='done', aic=aic, bic=bic, labels=labels,
                 elapsed_time=elapsed_time, elapsed_read_time=elapsed_read_time,
-                elapsed_processing_time=elapsed_processing_time))
+                elapsed_processing_time=elapsed_processing_time,
+                cluster_counts=cluster_counts,
+                cluster_count_minimum=cluster_count_minimum))
         db.session.commit()
     except Exception as e:
         db.session.query(Task).filter_by(job_id=job_id,
-                                     task_id=task_id).update_one(
+                                     task_id=task_id).update(
             task_status='error')
         raise e
     return 'Done'

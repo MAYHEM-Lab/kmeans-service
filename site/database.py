@@ -9,6 +9,7 @@ import time
 #from flask_app import mongo
 from bson.objectid import ObjectId
 from pymongo import MongoClient
+import numpy as np
 
 from config import MONGO_DBNAME, MONGO_URI
 
@@ -353,11 +354,15 @@ def mongo_no_context_update_task(job_id, task_id, aic, bic, labels, elapsed_time
     """
     client = MongoClient(MONGO_URI)
     db = client[MONGO_DBNAME]
+    cluster_counts = np.sort(np.bincount(labels))[::-1]
+    cluster_count_minimum = np.min(cluster_counts)
     response = db.tasks.update_one(
         {'job_id': job_id, 'task_id': task_id},
         {'$set': {'task_status': 'done', 'aic': aic, 'bic': bic, 'labels': labels,
                   'elapsed_time': elapsed_time, 'elapsed_read_time': elapsed_read_time,
-                  'elapsed_processing_time': elapsed_processing_time}})
+                  'elapsed_processing_time': elapsed_processing_time,
+                  'cluster_counts': cluster_counts, 'cluster_count_minimum':
+                      cluster_count_minimum}})
     return response
 
 
