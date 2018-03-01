@@ -141,7 +141,7 @@ def run_kmeans(data, n_clusters, covar_type, covar_tied, n_init):
     kmeans.fit(data)
     aic, bic = kmeans.aic(data), kmeans.bic(data)
     labels = [int(l) for l in kmeans.labels_]
-    return aic, bic, labels
+    return aic, bic, labels, kmeans.iteration_num, kmeans.cluster_centers_
 
 
 @app.task
@@ -179,7 +179,8 @@ def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, c
         if scale:
             data = preprocessing.scale(data)
 
-        aic, bic, labels = run_kmeans(data, k, covar_type, covar_tied, n_init)
+        aic, bic, labels, iteration_num, centers = run_kmeans(data, k,
+            covar_type, covar_tied, n_init)
 
         elapsed_processing_time = (datetime.utcnow() -
                                    start_processing_time).total_seconds()
@@ -187,11 +188,11 @@ def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, c
         elapsed_processing_time = elapsed_processing_time
         cluster_counts = (np.sort(np.bincount(labels))[::-1]).tolist()
         cluster_count_minimum = int(np.min(cluster_counts))
-        print(type(cluster_counts))
 
         db.session.query(Task).filter_by(job_id=job_id, task_id=task_id).update(
             dict(
                 task_status='done', aic=aic, bic=bic, labels=labels,
+                iteration_num=iteration_num, centers=((centers).tolist()),
                 elapsed_time=elapsed_time, elapsed_read_time=elapsed_read_time,
                 elapsed_processing_time=elapsed_processing_time,
                 cluster_counts=cluster_counts,

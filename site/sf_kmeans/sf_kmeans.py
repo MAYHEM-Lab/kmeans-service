@@ -40,6 +40,7 @@ class SF_KMeans(object):
         self.best_inertia_ = None
         self.inertias_ = []
         self.log_likelihoods_ = []
+        self.iteration_num = self.max_iter
 
     def fit(self, data):
         """
@@ -158,6 +159,7 @@ class SF_KMeans(object):
                 print('center_shift_total: {:0.6f}'.format(center_shift_total))
             if center_shift_total <= self.tol:
                 if self.verbose >= 4:
+                    self.iteration_num = (i+1)
                     print('Converged after {} iterations.'.format(i + 1))
                 break
             old_cluster_centers_ = self.cluster_centers_
