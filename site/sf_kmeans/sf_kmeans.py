@@ -158,8 +158,8 @@ class SF_KMeans(object):
             if self.verbose == 2:
                 print('center_shift_total: {:0.6f}'.format(center_shift_total))
             if center_shift_total <= self.tol:
+                self.iteration_num = (i + 1)
                 if self.verbose >= 4:
-                    self.iteration_num = (i+1)
                     print('Converged after {} iterations.'.format(i + 1))
                 break
             old_cluster_centers_ = self.cluster_centers_
