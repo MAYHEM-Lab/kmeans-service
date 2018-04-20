@@ -27,3 +27,4 @@ The purpose of the _Backend Worker_ is to do the following:
 
 ## Installation  
 See `site/README.md`.
+For Postgres setup, see the master branch.
