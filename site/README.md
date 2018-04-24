@@ -65,9 +65,9 @@ sudo service rabbitmq-server restart
 ```
 8. Create users:
 ```bash
-sudo rabbitmqctl add_user admin <password>
+sudo rabbitmqctl add_user admin <set_your_password_here>
 sudo rabbitmqctl set_user_tags admin administrator
-sudo rabbitmqctl add_user kmeans <password>
+sudo rabbitmqctl add_user kmeans <set_your_password_here>
 sudo rabbitmqctl set_permissions -p / kmeans ".*" ".*" ".*"
 ```
 9. Restart RabbitMQ:
@@ -108,17 +108,32 @@ sudo apt-get -y update && sudo apt-get -y upgrade && sudo apt-get install -y ntp
 
 5. Install Postgres ([official guide](https://www.postgresql.org/docs/current/static/tutorial-install.html)):
 ```bash
-sudo apt-get -Y install postgresql postgresql-contrib
+sudo apt-get -y install postgresql postgresql-contrib
 ```
-6. Setup users:
+
+`Note`: There are four system users we will use below:
+**root**, **ubuntu**, **postgres**, and **kmeans**;
+and two database users: **postgres** and **kmeans**.
+When logged into the machine, you will see the system username
+in front of the `@` sign; when logged into the database, you will see
+the database username in front of the `#` sign.
+
+6. Create the Database:
+Create database
+```bash
+# logged in as an ubuntu@euca user, create db as a postgresuser:
+sudo -i -u postgres createdb kmeans
+```
+
+7. Setup users:
  - after logging in as ubuntu user, create kmeans user:
 ```bash
-sudo -su
 sudo adduser kmeans
 ```
  - test the login
 ```bash
 sudo -i -u kmeans
+exit # (back to ubuntu user)
 ```
  - create postgres kmeans user
 ```bash
@@ -129,20 +144,26 @@ role (superuser): y
 ```
  - set the password
 ```bash
-sudo -u postgres psql
+psql
 alter user kmeans with encrypted password 'y0ur_passw0rd';
+# exit the database
+\q
 ```
  - test the login
 ```bash
 psql -h localhost  -U kmeans -d kmeans
+# exit the database
+\q
+# exit the postgres user back to ubuntu@
+exit
 ```
 
-7. Setup config:
+8. Setup config:
  - Open up `/etc/postgresql/your_pg_version/main/pg_hba.conf`
 ```bash
 sudo vi /etc/postgresql/your_pg_version/main/pg_hba.conf
 ```
- - Set the following lines
+ - Change the existing permissions to the following lines:
 ```bash
 local all all   trust
 host all all 0.0.0.0/0 md5
@@ -151,19 +172,19 @@ host all all 0.0.0.0/0 md5
 ```bash
 sudo vi /etc/postgresql/your_pg_version/main/postgresql.conf
 ```
- - Set the follwoving parameters:
+ - Set the following parameters:
 ```bash
 listen_addresses = '*'
 max_connections = 10000
 ```
 
-8. Create the database and tables
- - Create database
+9. Create the tables
 ```bash
-createdb kmeans
-```
- - Create tables
-```bash
+# switch user to kmeans@
+sudo -i -u kmeans
+# switch db user to kmeans#
+psql
+# create tables
 CREATE TABLE job (
     job_id serial PRIMARY KEY,
     n_experiments int NOT NULL,
@@ -203,10 +224,14 @@ CREATE TABLE task (
     centers numeric[],
     cluster_count_minimum int,
     elapsed_time int,
-    iteration_num int
+    iteration_num int,
     elapsed_read_time int,
     elapsed_processing_time int
 );
+# exit the database
+\q
+# exit the kmeans user back to ubuntu@
+exit
 ```
 
 10. Run Postgres:
@@ -214,11 +239,16 @@ CREATE TABLE task (
 sudo systemctl restart postgresql.service
 ```
 
-11. Other useful commands:
+11. Other useful commands for backup and debugging:
 ```bash
+# as ubuntu@
 sudo systemctl status postgresql.service
+# backup the databse as either kmeans# or postgres#
 pg_dump kmeans >  kmeans_backup.out
+# check the log as ubuntu@
 less  /var/log/postgresql/postgresql-9.5-main.log
+# connect from your local machine to the database:
+psql -h <your-DB-IP> -U kmeans -d kmeans
 ```
 
 
@@ -361,7 +391,7 @@ python
 >>> os.urandom(24)
 '\xcf6\x16\xac?\xdb\x0c\x1fb\x01p;\xa1\xf2/\x19\x8e\xcd\xfc\x07\xc9\xfd\x82\xf4'
 ```
-11. Set (or replace) values in `config.py`:
+11. Set (or replace) values in `kmeans-service/site/config.py`:
 ```
 FLASK_SECRET_KEY = <secret key generted in 10.>
 CELERY_BROKER = 'amqp://kmeans:<password>@<RabbitMQ-IP>:5672//'

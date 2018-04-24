@@ -22,18 +22,20 @@ The system consists of a total of five services:
    all tasks associated with each analysis.
   4. Storage: Amazon S3 to store the data files uploaded by users.
 
+  ![Centaurus Architecture](https://github.com/MAYHEM-Lab/kmeans-service/blob/master/doc/centaurus_architecture.png)
+
 ## Purpose
-The purpose of the _Frontend_ is to do the following:  
-1. Provide an interface for users to upload their data files to the
-   Backend Storage.
+The purpose of the _Frontend_ is to do the following:
+1. Provide an interface for users to upload their data files to the Backend
+Storage.
 2. Provide an interface for users to view the status and results of the
-   analysis.
-3. Generate all the tasks (individual k-means fit runs) needed to
-   complete a job.
+analysis.
+3. Generate all the tasks (individual k-means fit runs) needed to complete
+a job.
 4. Generate necessary plots and tables needed for 1. and 2.  
 5. Allow users to rerun tasks that failed.
 
-The purpose of the _Backend Worker_ is to do the following: 
+The purpose of the _Backend Worker_ is to do the following:
 1. Run the analysis based on the data and parameters provided in the
    Backend Queue.
 2. When done, update the Backend Database with the analysis results.  
@@ -42,6 +44,8 @@ The purpose of the _Backend Worker_ is to do the following:
 See `site/README.md`.
 
 ## Publications:
-Golubovic, Nevena and Gill, Angad and Krintz, Chandra and Wolski, Rich,
-["CENTAURUS: A Cloud Service for K-means Clustering"](http://www.cs.ucsb.edu/~ckrintz/papers/centaurus_datacom.pdf) ,
-2017 IEEE 15th Intl Conf on Dependable, Autonomic and Secure Computing, 15th Intl Conf on Pervasive Intelligence and Computing, 3rd Intl Conf on Big Data Intelligence and Computing and Cyber Science and Technology Congress
+N. Golubovic, A. Gill, C. Krintz, R. Wolski,
+["CENTAURUS: A Cloud Service for K-means Clustering"](http://www.cs.ucsb.edu/~ckrintz/papers/centaurus_datacom.pdf),
+2017 IEEE 15th Intl Conf on Dependable, Autonomic and Secure Computing, 15th
+Intl Conf on Pervasive Intelligence and Computing, 3rd Intl Conf on Big Data
+Intelligence and Computing and Cyber Science and Technology Congress
