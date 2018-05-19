@@ -397,20 +397,20 @@ def download_labels():
     task_id = int(request.args.get('task_id'))
     if task_id is None:
         return None
-    task = db.session.query(Task).filter_by(job_id=job_id, task_id=task_id).all()
+    task = db.session.query(Task).filter_by(job_id=job_id, task_id=task_id).first()
     if task is None:
         return None
 
-    covar_type = task['covar_type']
-    covar_tied = task['covar_tied']
-    k = task['k']
+    covar_type = task.covar_type
+    covar_tied = task.covar_type
+    k = task.k
     export_filename = '{}_{}_{}_{}.csv'.format(job_id, covar_type, covar_tied, k)
 
     job = db.session.query(Job).filter_by(job_id=job_id).first()
-    s3_file_key = job['s3_file_key']
+    s3_file_key = job.s3_file_key
     data = s3_to_df(s3_file_key)
 
-    data = data.assign(Label=task['labels'])
+    data = data.assign(Label=task.labels)
     response = make_response(data.to_csv(index=False))
     response.headers["Content-Disposition"] = "attachment; filename={}".format(export_filename)
     response.headers["Content-Type"] = "text/csv"
