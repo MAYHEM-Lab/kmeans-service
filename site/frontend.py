@@ -141,9 +141,10 @@ def report(job_id=None):
               category='danger')
         return redirect(url_for('status', job_id=job.id))
 
+
     # all tasks are done
     if min_members is None:
-        min_members = 40
+        min_members = 30
 
     start_time = job.start_time.strftime("%Y-%m-%d %H:%M")
     best_tasks = tasks_to_best_results(job_id, min_members)

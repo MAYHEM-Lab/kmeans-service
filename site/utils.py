@@ -48,38 +48,39 @@ def float_to_str(num):
 """ Data wrangling functions """
 
 
-# TODO add filter_by min_members
-def tasks_to_best_results(job_id, min_members=0):
+def tasks_to_best_results(job_id, min_members=30):
     """
     Finds the best clustering among tasks for each covar_type-covar_tied pair.
     """
     results = []
-    best_records = db.session.query(func.max(Task.bic), Task.covar_tied,
-                            Task.covar_type).filter_by(
-        job_id=job_id).group_by(Task.covar_type, Task.covar_tied).all()
-
-    for bic, tied, type in best_records:
+    filtered_by_members = db.session.query(Task.bic, Task.covar_tied,
+        Task.covar_type, Task.cluster_count_minimum).filter(
+        Task.job_id == job_id, Task.cluster_count_minimum >= min_members).all()
+    filtered_by_members = pd.DataFrame(filtered_by_members)
+    best_records = filtered_by_members.groupby(['covar_type', 'covar_tied'],
+                                               as_index=False)['bic'].max()
+    for index, row in best_records.iterrows():
         result = db.session.query(Task).filter(Task.job_id == job_id,
-                                          #  use >= to avoid rounding error.
-                                          Task.bic >= floor(bic),
-                                          Task.covar_tied == bool(tied),
-                                          Task.covar_type == type).first()
+                                               Task.covar_tied == bool(row['covar_tied']),
+                                               Task.covar_type == row['covar_type'],
+                                               Task.bic >= floor(row['bic'])).first()
         results += [result]
+
     return results
 
 
-# TODO update doc
 def tasks_to_best_task(job_id):
     """
     Finds the single best cluster assignment corresponding to the highest BIC.
 
     Parameters
     ----------
-    tasks: list(dict)
+    job_id: int
 
     Returns
     -------
     k: int - number of clusters
+    bic: int - BIC score
     labels: list(int) - cluster assignments
     task_id: int - task_id of the best task
     """
@@ -89,6 +90,7 @@ def tasks_to_best_task(job_id):
     index = np.argmax(np.array(bics))
     best_task = tasks[index]
     return best_task.k, best_task.bic, best_task.labels, best_task.task_id
+
 
 # TODO this can be done with an SQL query.
 def task_stats(n_tasks, tasks):
@@ -137,29 +139,6 @@ def task_stats(n_tasks, tasks):
                  n_tasks_submitted=n_tasks_submitted, per_submitted=per_submitted)
     return stats
 
-# TODO this should be computed and saved.
-# TODO compute the size of the smallest cluster.
-def filter_by_min_members(tasks, min_members=10):
-    """
-    Keep tasks only if they have at least `min_members` points in each cluster. Does not modify `tasks`.
-
-    Parameters
-    ----------
-    tasks: list(dict)
-        List of task objects for a job.
-    min_members: int
-
-    Returns
-    -------
-    list(dict)
-
-    """
-    filtered_tasks = []
-    for task in tasks:
-        if np.all(np.bincount(task.labels) > min_members):
-            filtered_tasks += [task]
-    return filtered_tasks
-
 
 """ Plotting functions  """
 
@@ -180,8 +159,6 @@ def plot_aic_bic_fig(job_id):
         "k", "covar_type", "covar_tied", "bic", "aic")).all()
     data_records = [task.__dict__ for task in tasks]
     df = pd.DataFrame.from_records(data_records)
-
-    print(df)
 
     sns.set(context='talk', style='whitegrid')
     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
@@ -334,8 +311,8 @@ def plot_count_fig(job_id):
     df['covar_type'] = [x.capitalize() for x in df['covar_type']]
     df['covar_tied'] = [['Untied', 'Tied'][x] for x in df['covar_tied']]
     f = sns.factorplot(x='k', kind='count', col='covar_type', row='covar_tied', data=df,
-                      row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True,
-                      palette='Blues_d')
+                       row_order=['Tied', 'Untied'], col_order=['Full', 'Diag', 'Spher'], legend=True, legend_out=True,
+                       palette='Blues_d')
     f.set_titles("{col_name}-{row_name}")
     f.set_xlabels("Num. of Clusters (K)")
     return f.fig
