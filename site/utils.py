@@ -61,11 +61,11 @@ def tasks_to_best_results(job_id, min_members=30):
                                                as_index=False)['bic'].max()
     for index, row in best_records.iterrows():
         result = db.session.query(Task).filter(Task.job_id == job_id,
-                                               Task.covar_tied == bool(row['covar_tied']),
-                                               Task.covar_type == row['covar_type'],
-                                               Task.bic >= floor(row['bic'])).first()
+            Task.covar_tied == bool(row['covar_tied']),
+            Task.covar_type == row['covar_type'],
+            Task.bic >= floor(row['bic']),
+            Task.cluster_count_minimum > min_members).order_by(Task.bic).first()
         results += [result]
-
     return results
 
 
