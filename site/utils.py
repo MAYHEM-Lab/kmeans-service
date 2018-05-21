@@ -25,7 +25,7 @@ from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS, SPATIAL_COLUMNS, EXCLUDE_C
 from config import S3_BUCKET, EUCA_S3_HOST, EUCA_S3_PATH, EUCA_KEY_ID, EUCA_SECRET_KEY
 from models import Job, Task
 from flask_app import db
-from sqlalchemy import func
+from sqlalchemy import desc, func
 from sqlalchemy.orm import load_only
 
 
@@ -64,7 +64,7 @@ def tasks_to_best_results(job_id, min_members=30):
             Task.covar_tied == bool(row['covar_tied']),
             Task.covar_type == row['covar_type'],
             Task.bic >= floor(row['bic']),
-            Task.cluster_count_minimum > min_members).order_by(Task.bic).first()
+            Task.cluster_count_minimum > min_members).order_by(desc(Task.bic)).first()
         results += [result]
     return results
 
