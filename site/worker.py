@@ -198,6 +198,8 @@ def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, c
                 cluster_counts=cluster_counts,
                 cluster_count_minimum=cluster_count_minimum))
         db.session.commit()
+        total_time = datetime.utcnow() - start_time
+        print('total time : {}'.format(total_time))
     except Exception as e:
         db.session.query(Task).filter_by(job_id=job_id,
                                      task_id=task_id).update(
