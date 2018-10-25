@@ -437,15 +437,16 @@ def upload_to_s3(filepath, filename, job_id):
     s3_file_key = generate_s3_file_key(job_id, filename)
 
     """ Amazon S3 code """
-    # s3 = boto3.resource('s3')
-    # s3.meta.client.upload_file(filepath, S3_BUCKET, s3_file_key)
+    s3 = boto3.resource('s3')
+    s3.meta.client.upload_file(filepath, S3_BUCKET, s3_file_key)
 
     """ Eucalyptus S3 code """
-    s3conn = boto.connect_walrus(aws_access_key_id=EUCA_KEY_ID, aws_secret_access_key=EUCA_SECRET_KEY, is_secure=False,
-                                 port=8773, path=EUCA_S3_PATH, host=EUCA_S3_HOST)
-    euca_bucket = s3conn.get_bucket(S3_BUCKET)
-    k = boto.s3.key.Key(bucket=euca_bucket, name=s3_file_key)
-    k.set_contents_from_filename(filepath)
+    # s3conn = boto.connect_walrus(aws_access_key_id=EUCA_KEY_ID, aws_secret_access_key=EUCA_SECRET_KEY, is_secure=False,
+    #                              port=8773, path=EUCA_S3_PATH, host=EUCA_S3_HOST)
+    # euca_bucket = s3conn.get_bucket(S3_BUCKET)
+    # k = boto.s3.key.Key(bucket=euca_bucket, name=s3_file_key)
+    # k.set_contents_from_filename(filepath)
+
     return s3_file_key
 
 
@@ -466,15 +467,15 @@ def s3_to_df(s3_file_key):
     filename = '/tmp/{}_{}'.format(s3_file_key.replace('/', '_'), random.randint(1, 1e6))
 
     """ Amazon S3 code """
-    # s3 = boto3.client('s3')
-    # s3.download_file(S3_BUCKET, s3_file_key, filename)
+    s3 = boto3.client('s3')
+    s3.download_file(S3_BUCKET, s3_file_key, filename)
 
     """ Eucalyptus S3 code """
-    s3conn = boto.connect_walrus(aws_access_key_id=EUCA_KEY_ID, aws_secret_access_key=EUCA_SECRET_KEY, is_secure=False,
-                                 port=8773, path=EUCA_S3_PATH, host=EUCA_S3_HOST)
-    euca_bucket = s3conn.get_bucket(S3_BUCKET)
-    k = boto.s3.key.Key(bucket=euca_bucket, name=s3_file_key)
-    k.get_contents_to_filename(filename)
+    # s3conn = boto.connect_walrus(aws_access_key_id=EUCA_KEY_ID, aws_secret_access_key=EUCA_SECRET_KEY, is_secure=False,
+    #                              port=8773, path=EUCA_S3_PATH, host=EUCA_S3_HOST)
+    # euca_bucket = s3conn.get_bucket(S3_BUCKET)
+    # k = boto.s3.key.Key(bucket=euca_bucket, name=s3_file_key)
+    # k.get_contents_to_filename(filename)
 
     df = pd.read_csv(filename)
     os.remove(filename)
