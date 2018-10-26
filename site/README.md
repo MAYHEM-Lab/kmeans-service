@@ -17,96 +17,65 @@ load-balancer. For more details scroll to the end.
 Instructions differ for Ubuntu 14 and Ubuntu 16.
 
 ### Backend
-#### Queue
-1. Create a security group for the Queue with the following ports open:
-`TCP 22`, `TCP 5672` and, optionally, `TCP 15672`.
-```bash
-euca-create-group cent-queue -d centaurus-queue-open-22-5672-15672
-euca-authorize cent-queue  -p 22 -s 0.0.0.0/0 -P tcp
-euca-authorize cent-queue  -p 5672 -s 0.0.0.0/0 -P tcp
-euca-authorize cent-queue  -p 15672  -s 0.0.0.0/0 -P tcp
-euca-describe-group cent-queue
-```
-2. Create an Ubuntu Server 16.04 LTS instance
-(Aristotle: Ubuntu Server 16.04 LTS Xenial Xerus Image: emi-418f4d99)
-**or** an Ubuntu 14.04 Trusty instance (ECI cluster: AMI: emi-CF65C654
-Aristotle cluster: emi-80246ee5)
-of m1.xlarge (or any other) type:
-```bash
- euca-run-instances -k your.key -g cent-queue -t m1.xlarge emi-418f4d99
-```
-   - To setup a region within Aristotle append the following to the
-euca-run-instances command
-```bash
- --region admin@cloud.aristotle.ucsb.edu -z aristotle
-```
-3. Login to the instances:
+
+* Create a security group for all EC2 instance with the following ports open:
+`TCP 22`, `TCP 80`, `TCP 5432`, `TCP 5672`,  and, optionally, `TCP 15672`.
+
+![Security Group](doc/security_group.png)
+
+#### Queue 
+
+1. Create an Ubuntu Server 18.04 LTS instance
+(AWS EC2: Ubuntu Server 18.04 LTS (HVM), SSD Volume Type - ami-0bbe6b35405ecebdb). **Configure security group as the one created above.**
+
+2. Login to the instances:
 ```bash
 ssh -i <key_file>.pem ubuntu@<instances IP>
 ```
-4. Update packages:
+3. Update packages:
 ```bash
 sudo apt-get -y update && sudo apt-get -y upgrade
 ```
-
-5. Install RabbitMQ Server:
+4. Install RabbitMQ Server:
 ```bash
 sudo apt-get install -y rabbitmq-server
 ```
-6. Install NTP to sync clock:
+5. Install NTP to sync clock:
 ```bash
 sudo apt-get install -y ntp
 ```
-7. [Optional] Enable management plugin so you can use web UI available
+6. [Optional] Enable management plugin so you can use web UI available
 at port `15672`:
 ```bash
 sudo rabbitmq-plugins enable rabbitmq_management
 sudo service rabbitmq-server restart
 ```
-8. Create users:
+7. Create users:
 ```bash
 sudo rabbitmqctl add_user admin <set_your_password_here>
 sudo rabbitmqctl set_user_tags admin administrator
 sudo rabbitmqctl add_user kmeans <set_your_password_here>
 sudo rabbitmqctl set_permissions -p / kmeans ".*" ".*" ".*"
 ```
-9. Restart RabbitMQ:
+8. Restart RabbitMQ:
 ```bash
 sudo service rabbitmq-server restart
 ```
 
 #### Database
-1. Create a security group for the Database with the following ports
-open: `TCP 22`, `TCP ` and, `TCP 5432`.
-```bash
-euca-create-group cent-db -d centaurus-db-open-22-27017
-euca-authorize cent-db  -p 22 -s 0.0.0.0/0 -P tcp
-euca-authorize cent-db  -p 5432 -s 0.0.0.0/0 -P tcp
-euca-describe-group cent-db
-```
 
-2. Create an Ubuntu Server 16.04 LTS instance
-(Aristotle: Ubuntu Server 16.04 LTS Xenial Xerus Image: emi-418f4d99)
-**or** an Ubuntu 14.04 Trusty instance (ECI cluster: AMI: emi-CF65C654
-Aristotle cluster: emi-80246ee5) of m2.2xlarge (or any other) type:
-```bash
- euca-run-instances -k your.key -g cent-queue -t m2.2xlarge emi-418f4d99
-```
-   - To setup a region within Aristotle append the following to the
-euca-run-instances command
-```bash
- --region admin@cloud.aristotle.ucsb.edu -z aristotle
-```
-3. Login to the instances:
+1. Create an Ubuntu Server 18.04 LTS instance
+(AWS EC2: Ubuntu Server 18.04 LTS (HVM), SSD Volume Type - ami-0bbe6b35405ecebdb). **Configure security group as the one created above.**
+
+2. Login to the instances:
 ```bash
 ssh -i <key_file>.pem ubuntu@<instances IP>
 ```
-4. Update packages and install NTP to sync clock:
+3. Update packages and install NTP to sync clock:
 ```bash
 sudo apt-get -y update && sudo apt-get -y upgrade && sudo apt-get install -y ntp
 ```
-
-5. Install Postgres ([official guide](https://www.postgresql.org/docs/current/static/tutorial-install.html)):
+4. Install Postgres ([official guide](https://www.postgresql.org/docs/current/static/tutorial-install.html)):
 ```bash
 sudo apt-get -y install postgresql postgresql-contrib
 ```
@@ -118,14 +87,14 @@ When logged into the machine, you will see the system username
 in front of the `@` sign; when logged into the database, you will see
 the database username in front of the `#` sign.
 
-6. Create the Database:
+5. Create the Database:
 Create database
 ```bash
 # logged in as an ubuntu@euca user, create db as a postgresuser:
 sudo -i -u postgres createdb kmeans
 ```
 
-7. Setup users:
+6. Setup users:
  - after logging in as ubuntu user, create kmeans user:
 ```bash
 sudo adduser kmeans
@@ -246,37 +215,23 @@ sudo systemctl status postgresql.service
 # backup the databse as either kmeans# or postgres#
 pg_dump kmeans >  kmeans_backup.out
 # check the log as ubuntu@
-less  /var/log/postgresql/postgresql-9.5-main.log
+less  /var/log/postgresql/postgresql-10-main.log
 # connect from your local machine to the database:
 psql -h <your-DB-IP> -U kmeans -d kmeans
 ```
 
 
 ### File Store
-1. Login to [Eucalyptus S3](https://console.aristotle.ucsb.edu/buckets).
+1. Login to [AWS S3]
 2. Click on "Create Bucket".
 3. Give it a unique name and click on "Create Bucket".
 
 
 #### Worker
-1. Create a security group for the Worker opened port: `TCP 22`:
-```bash
- euca-create-group cent-worker -d centaurus-worker-open-22
- euca-authorize cent-worker  -p 22 -s 0.0.0.0/0 -P tcp
- euca-describe-group cent-worker
-```
-2. Create an Ubuntu Server 16.04 LTS instance
-(Aristotle: Ubuntu Server 16.04 LTS Xenial Xerus Image: emi-418f4d99)
-**or** an Ubuntu 14.04 Trusty instance (ECI cluster: AMI: emi-CF65C654
-Aristotle cluster: emi-80246ee5) of m2.2xlarge (or any other) type:
-```bash
- euca-run-instances -k your.key -g cent-worker -t m2.2xlarge emi-418f4d99
-```
-   - To setup a region within Aristotle append the following to the
-euca-run-instances command
-```bash
- --region admin@cloud.aristotle.ucsb.edu -z aristotle
-```
+
+1. Create an Ubuntu Server 18.04 LTS instance
+(AWS EC2: Ubuntu Server 18.04 LTS (HVM), SSD Volume Type - ami-0bbe6b35405ecebdb). **Configure security group as the one created above.**
+
 2. Login to the instance:
 ```bash
 ssh -i <key_file>.pem ubuntu@<instances IP>
@@ -299,9 +254,7 @@ pip install -r requirements.txt
 ```
 6. Configure worker service:
 ```bash
-#if using upstart - Ubuntu 14.04
-sudo cp /home/ubuntu/kmeans-service/site/worker.conf /etc/init/worker.conf
-#if using systemd - Ubuntu 16.04
+#if using systemd - Ubuntu 18.04
 sudo cp /home/ubuntu/kmeans-service/site/util/worker.service /etc/systemd/system/
 sudo cp /home/ubuntu/kmeans-service/site/util/celery-teardown.sh /usr/sbin/
 ```
@@ -310,52 +263,30 @@ sudo cp /home/ubuntu/kmeans-service/site/util/celery-teardown.sh /usr/sbin/
 CELERY_BROKER = 'amqp://kmeans:<password>@<RabbitMQ-IP>:5672//'
 POSTGRES_URI = 'postgres://kmeans:passwd@<Postgres-IP>:5432/kmeans'
 S3_BUCKET = '<unique_s3_bucket_name>'
-EUCA_KEY_ID = "<eucalyptus_key_id>"
-EUCA_SECRET_KEY = "<eucalyptus_secret_key>"
 ```
 10. Run the server:  
 ```bash
-#if using upstart - Ubuntu 14.04
-sudo service worker start
-#if using systemd - Ubuntu 16.04
+#if using systemd - Ubuntu 18.04
 sudo systemctl start worker
 ```
 
 ### Frontend
-1. Create a security group for the Fronted with opened ports `TCP 22`
-and `TCP 80`.
-```bash
-euca-create-group cent-frontend -d centaurus-frontend-open-22-80
-euca-authorize cent-frontend  -p 22 -s 0.0.0.0/0 -P tcp
-euca-authorize cent-frontend  -p 80 -s 0.0.0.0/0 -P tcp
-euca-describe-group cent-frontend
-```
-2. Create an Ubuntu Server 16.04 LTS instance
-(Aristotle: Ubuntu Server 16.04 LTS Xenial Xerus Image: emi-418f4d99)
-**or** an Ubuntu 14.04 Trusty instance (ECI cluster: AMI: emi-CF65C654
-Aristotle cluster: emi-80246ee5) of m2.2xlarge (or any other) type:
-```bash
- euca-run-instances -k your.key -g cent-frontend -t m2.2xlarge emi-418f4d99
-```
-   - To setup a region within Aristotle append the following to the
-euca-run-instances command
-```bash
- --region admin@cloud.aristotle.ucsb.edu -z aristotle
-```
-3. Login to the instances:
+1. Create an Ubuntu Server 18.04 LTS instance
+(AWS EC2: Ubuntu Server 18.04 LTS (HVM), SSD Volume Type - ami-0bbe6b35405ecebdb). **Configure security group as the one created above.**
+2. Login to the instances:
 ```bash
 ssh -i <key_file>.pem ubuntu@<instances IP>
 ```
-4. Update packages: . Install NTP to sync clock:Install required Ubuntu
+3. Update packages: . Install NTP to sync clock:Install required Ubuntu
 packages:
 ```bash
 sudo apt-get -y update && sudo apt-get -y upgrade && sudo apt-get install -y ntp && sudo apt-get install -y nginx python-virtualenv python3-tk git
 ```
-5. Clone this repo:
+4. Clone this repo:
 ```bash
 git clone https://github.com/MAYHEM-Lab/kmeans-service.git
 ```
-6. Install required Python packages:
+5. Install required Python packages:
 ```bash
 cd ~/kmeans-service/site
 virtualenv venv --python=python3
@@ -363,7 +294,7 @@ source venv/bin/activate
 pip install pip --upgrade
 pip install -r requirements.txt
 ```
-7. Configure NGINX:
+6. Configure NGINX:
 ```bash
 sudo /etc/init.d/nginx start
 sudo rm /etc/nginx/sites-enabled/default
@@ -371,42 +302,38 @@ sudo cp conf/nginx.conf /etc/nginx/sites-available/kmeans_frontend
 sudo ln -s /etc/nginx/sites-available/kmeans_frontend /etc/nginx/sites-enabled/kmeans_frontend
 sudo /etc/init.d/nginx restart
 ```
-8. Create directory for logs:
+7. Create directory for logs:
 ```bash
 mkdir /home/ubuntu/logs
 mkdir /home/ubuntu/logs/gunicorn
 touch /home/ubuntu/logs/gunicorn/error.log
 ```
-9. Configure frontend service:
+8. Configure frontend service:
 ```bash
-#if using upstart - Ubuntu 14.04
-sudo cp /home/ubuntu/kmeans-service/site/conf/frontend.conf /etc/init/frontend.conf
-#if using systemd - Ubuntu 16.04
+#if using systemd - Ubuntu 18.04
 sudo cp /home/ubuntu/kmeans-service/site/util/frontend.service /etc/systemd/system/
 ```
-10. Generate a secret key for the Flask server:
+9. Generate a secret key for the Flask server:
 ```bash
 python
 >>> import os
 >>> os.urandom(24)
 '\xcf6\x16\xac?\xdb\x0c\x1fb\x01p;\xa1\xf2/\x19\x8e\xcd\xfc\x07\xc9\xfd\x82\xf4'
 ```
-11. Set (or replace) values in `kmeans-service/site/config.py`:
+10. Set (or replace) values in `kmeans-service/site/config.py`:
 ```
 FLASK_SECRET_KEY = <secret key generted in 10.>
 CELERY_BROKER = 'amqp://kmeans:<password>@<RabbitMQ-IP>:5672//'
 POSTGRES_URI = 'postgres://kmeans:passwd@<Postgres-IP>:5432/kmeans'
 S3_BUCKET = '<unique_s3_bucket_name>'
-EUCA_KEY_ID = "<eucalyptus_key_id>"
-EUCA_SECRET_KEY = "<eucalyptus_secret_key>"
 ```
-12. Run the server:
+11. Run the server:
 ```bash
-#if using upstart - Ubuntu 14.04
-sudo service frontend start
-#if using systemd - Ubuntu 16.04
+#if using systemd - Ubuntu 18.04
 sudo systemctl start frontend
 ```
+
+**TODO - Autoscaling for AWS**
 
 ## Setting up auto-scaling for Backend Workers
 Follow these instructions to setup auto-scaling on

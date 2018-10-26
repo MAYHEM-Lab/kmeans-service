@@ -22,7 +22,7 @@ The system consists of a total of five services:
    all tasks associated with each analysis.
   4. Storage: Amazon S3 to store the data files uploaded by users.
 
-  ![Centaurus Architecture](https://github.com/MAYHEM-Lab/kmeans-service/blob/master/doc/centaurus_architecture.png)
+  ![Centaurus Architecture](doc/centaurus_architecture.png)
 
 ## Purpose
 The purpose of the _Frontend_ is to do the following:
