@@ -57,6 +57,7 @@ def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_
     task_id = 0
     tasks = []
     print("creating tasks")
+    print("Time stamp : {}".format(datetime.utcnow()))
     for _ in range(n_experiments):
         for k in range(1, max_k + 1):
             for covar in covars:
@@ -199,6 +200,7 @@ def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, c
                 cluster_count_minimum=cluster_count_minimum))
         db.session.commit()
         total_time = (datetime.utcnow() - start_time).total_seconds()
+        print("Time stamp : {}".format(datetime.utcnow()))
         print('total time : {}'.format(total_time))
     except Exception as e:
         db.session.query(Task).filter_by(job_id=job_id,
