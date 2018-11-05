@@ -560,7 +560,7 @@ def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_
                 # Send a event message to SNS
                 response = client.publish(
                     TopicArn=SNS_TOPIC_ARN,
-                    Message=json.dumps(json_str)
+                    Message=json.dumps(json_str)·
                 )
                 print(response)
                 task_id += 1
