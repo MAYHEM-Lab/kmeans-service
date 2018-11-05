@@ -19,104 +19,64 @@ Author: Angad Gill, Nevena Golubovic
 from datetime import datetime
 from sf_kmeans import sf_kmeans
 from utils import s3_to_df
-from celery import Celery
+# from celery import Celery
 from config import CELERY_BROKER
-from sklearn import preprocessing
+from sklearn_lite import preprocessing
 from models import Job, Task
 from flask_app import db
 import numpy as np
+import os, json
 
-app = Celery('jobs', broker=CELERY_BROKER)
+S3_BUCKET = os.environ['S3_BUCKET']
 
-
-@app.task
-def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_key, scale):
-    """
-    Creates all the tasks needed to complete a job.
-    Adds database entries for each task and triggers an asynchronous
-    functions to process the task.
-
-    Parameters
-    ----------
-    job_id: str
-    n_init: int
-    n_experiments: int
-    max_k: int
-    covars: list(str)
-    columns: list(str)
-    s3_file_key: str
-    scale: bool
-
-    Returns
-    -------
-    None
-    """
-    task_status = 'pending'
-
-    # Add tasks to DB
-    task_id = 0
-    tasks = []
-    print("creating tasks")
-    print("Time stamp : {}".format(datetime.utcnow()))
-    for _ in range(n_experiments):
-        for k in range(1, max_k + 1):
-            for covar in covars:
-                covar_type, covar_tied = covar.lower().split('-')
-                covar_tied = covar_tied == 'tied'
-                task = Task(task_id=task_id, job_id=job_id, covar_type=covar_type,
-                            covar_tied=covar_tied,
-                            n_experiments=n_experiments, k=k, n_init=n_init,
-                            s3_file_key=s3_file_key,
-                            columns=columns, task_status=task_status)
-                tasks += [task]
-                task_id += 1
-
-    response = db.session.add_all(tasks)
-    db.session.commit()
-
-    # Start workers
-    task_id = 0
-    for _ in range(n_experiments):
-        for k in range(1, max_k + 1):
-            for covar in covars:
-                covar_type, covar_tied = covar.lower().split('-')
-                covar_tied = covar_tied == 'tied'
-                work_task.delay(job_id, task_id, k, covar_type, covar_tied,
-                                n_init, s3_file_key, columns, scale)
-                task_id += 1
+# app = Celery('jobs', broker=CELERY_BROKER)
 
 
 # TODO pass the task id instead of all the params. do this everywhere.
-@app.task
-def rerun_task(job_id, task_id):
-    """
-    Reruns a specific task from a job.
-    Sets the task status to 'pending' and triggers an asynchronous function to
-    process the task.
+# @app.task
+# def rerun_task(job_id, task_id):
+#     """
+#     Reruns a specific task from a job.
+#     Sets the task status to 'pending' and triggers an asynchronous function to
+#     process the task.
 
-    Parameters
-    ----------
-    job_id: str
-    task_id: int
+#     Parameters
+#     ----------
+#     job_id: str
+#     task_id: int
 
-    Returns
-    -------
-    None
-    """
-    job = db.session.query(Job).filter_by(job_id=job_id).first()
-    task = db.session.query(Task).filter_by(job_id=job_id, task_id=task_id).first()
-    k = task.k
-    covar_type = task.covar_type
-    covar_tied = task.covar_tied
-    n_init = task.n_init
-    s3_file_key = job.s3_file_key
-    columns = job.columns
-    scale = job.scale
-    task.task_status = 'pending'
-    db.session.commit()
-    work_task.delay(job_id, task_id, k, covar_type, covar_tied, n_init,
-                    s3_file_key, columns, scale)
+#     Returns
+#     -------
+#     None
+#     """
+#     job = db.session.query(Job).filter_by(job_id=job_id).first()
+#     task = db.session.query(Task).filter_by(job_id=job_id, task_id=task_id).first()
+#     k = task.k
+#     covar_type = task.covar_type
+#     covar_tied = task.covar_tied
+#     n_init = task.n_init
+#     s3_file_key = job.s3_file_key
+#     columns = job.columns
+#     scale = job.scale
+#     task.task_status = 'pending'
+#     db.session.commit()
+#     work_task.delay(job_id, task_id, k, covar_type, covar_tied, n_init,
+#                     s3_file_key, columns, scale)
 
+def lambda_handler(event, context):
+    message = event['Records'][0]['Sns']['Message']
+    task = json.loads(message)
+    job_id = task['job_id']
+    task_id = task['task_id']
+    k = task['k']
+    covar_type = task['covar_type']
+    covar_tied = task['covar_tied']
+    n_init = task['n_init']
+    s3_file_key = task['s3_file_key']
+    columns = task['columns']
+    scale = task['scale']
+    response = work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, columns, scale)
+    return {"job_id": job_id, "task_id": task_id, "response": response}
 
 def run_kmeans(data, n_clusters, covar_type, covar_tied, n_init):
     """
@@ -145,7 +105,7 @@ def run_kmeans(data, n_clusters, covar_type, covar_tied, n_init):
     return aic, bic, labels, kmeans.iteration_num, kmeans.cluster_centers_
 
 
-@app.task
+# @app.task
 def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, columns, scale):
     """
     Performs the processing needed to complete a task.
@@ -208,6 +168,3 @@ def work_task(job_id, task_id, k, covar_type, covar_tied, n_init, s3_file_key, c
             task_status='error')
         raise e
     return 'Done'
-
-
-

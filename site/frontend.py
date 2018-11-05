@@ -20,7 +20,7 @@ Eucalyptus S3  MongoDB  <-------+   |
 Author: Angad Gill, Nevena Golubovic
 """
 from datetime import datetime
-import matplotlib
+import matplotlib, json, boto3
 import numpy as np
 import os
 matplotlib.use('Agg')  # ensure that plotting works on a server with no display
@@ -32,8 +32,8 @@ from utils import tasks_to_best_results, task_stats, tasks_to_best_task
 from utils import plot_cluster_fig, plot_single_cluster_fig, plot_aic_bic_fig
 from utils import plot_count_fig, plot_correlation_fig, get_viz_columns
 from utils import allowed_file, upload_to_s3, s3_to_df, job_to_data, fig_to_png
-from worker import create_tasks, rerun_task
-from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS, SPATIAL_COLUMNS
+from worker import rerun_task #, create_tasks
+from config import UPLOAD_FOLDER, EXCLUDE_COLUMNS, SPATIAL_COLUMNS, SNS_TOPIC_ARN
 from models import Job, Task
 from flask_app import db
 
@@ -480,8 +480,11 @@ def submit():
             os.remove(filepath)
 
             # Create all tasks asynchronously
-            create_tasks.apply_async((job.job_id, n_init, n_experiments, max_k,
-                covars, columns, s3_file_key, scale), queue = 'high')
+            # TODO send a message to SNS / move create_tasks to frontend
+            # For every tasks, send a event message to SNS, which triggers Lambda worker
+
+            create_tasks(job.job_id, n_init, n_experiments, max_k,
+                         covars, columns, s3_file_key, scale)
             print('creating all tasks asynchronously')
             flash('Your request with job ID "{}" and {} tasks are being submitted. Refresh this page for updates.'.format(
                 str(job.job_id), n_tasks), category='success')
@@ -494,6 +497,73 @@ def submit():
             return redirect(url_for('index'))
     else:
         return redirect(request.url)
+
+def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_key, scale):
+    """
+    Creates all the tasks needed to complete a job.
+    Adds database entries for each task and triggers an asynchronous
+    functions to process the task.
+
+    Parameters
+    ----------
+    job_id: str
+    n_init: int
+    n_experiments: int
+    max_k: int
+    covars: list(str)
+    columns: list(str)
+    s3_file_key: str
+    scale: bool
+
+    Returns
+    -------
+    None
+    """
+    task_status = 'pending'
+    client = boto3.client('sns')
+
+    # Add tasks to DB
+    task_id = 0
+    tasks = []
+    print("creating tasks")
+    print("Starting Time stamp : {}".format(datetime.utcnow()))
+    for _ in range(n_experiments):
+        for k in range(1, max_k + 1):
+            for covar in covars:
+                covar_type, covar_tied = covar.lower().split('-')
+                covar_tied = covar_tied == 'tied'
+                task = Task(task_id=task_id, job_id=job_id, covar_type=covar_type,
+                            covar_tied=covar_tied,
+                            n_experiments=n_experiments, k=k, n_init=n_init,
+                            s3_file_key=s3_file_key,
+                            columns=columns, task_status=task_status)
+                tasks += [task]
+                task_id += 1
+
+    response = db.session.add_all(tasks)
+    db.session.commit()
+
+    # Start workers
+    task_id = 0
+    for _ in range(n_experiments):
+        for k in range(1, max_k + 1):
+            for covar in covars:
+                covar_type, covar_tied = covar.lower().split('-')
+                covar_tied = covar_tied == 'tied'
+                
+                json_str = {
+                    'task_id':task_id, 'job_id':job_id, 'covar_type':covar_type,
+                    'covar_tied':covar_tied, 'n_experiments':n_experiments, 
+                    'k':k, 'n_init':n_init, 's3_file_key':s3_file_key,
+                    'columns':columns, 'task_status':task_status
+                }
+                # Send a event message to SNS
+                response = client.publish(
+                    TopicArn=SNS_TOPIC_ARN,
+                    Message=json.dumps(json_str)
+                )
+                print(response)
+                task_id += 1
 
 
 @app.route('/rerun/', methods=['POST'])

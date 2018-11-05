@@ -16,3 +16,4 @@ CELERY_BROKER = 'amqp://localhost//'
 POSTGRES_URI = 'postgres://username:password@host:port/db'
 EUCA_KEY_ID = ""
 EUCA_SECRET_KEY = ""
+SNS_TOPIC_ARN = "arn:aws:sns:us-west-2:603495292017:kmeansservice"
