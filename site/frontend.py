@@ -555,12 +555,12 @@ def create_tasks(job_id, n_init, n_experiments, max_k, covars, columns, s3_file_
                     'task_id':task_id, 'job_id':job_id, 'covar_type':covar_type,
                     'covar_tied':covar_tied, 'n_experiments':n_experiments, 
                     'k':k, 'n_init':n_init, 's3_file_key':s3_file_key,
-                    'columns':columns, 'task_status':task_status
+                    'columns':columns, 'task_status':task_status, 'scale':scale
                 }
                 # Send a event message to SNS
                 response = client.publish(
                     TopicArn=SNS_TOPIC_ARN,
-                    Message=json.dumps(json_str)·
+                    Message=json.dumps(json_str)
                 )
                 print(response)
                 task_id += 1
