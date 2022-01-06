@@ -4,7 +4,7 @@ billiard==3.5.0.2
 boto==2.47.0
 boto3==1.4.4
 botocore==1.5.45
-celery==4.0.2
+celery==5.2.2
 click==6.7
 cycler==0.10.0
 docutils==0.13.1
